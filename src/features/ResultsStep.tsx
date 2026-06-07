@@ -111,42 +111,59 @@ export function ResultsStep({ onBack }: { onBack: () => void }) {
         </p>
       </div>
 
-      {(result.specialIncome > 0 || result.specialTaxWithheld > 0 || result.dbaIncome > 0) && (
+      {result.usesSpecialRates && (
         <div className="card space-y-2 border-indigo-200 bg-indigo-50/40">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-indigo-700">
-            Captured, but taxed specially — not in this estimate
+            Special tax rates applied
           </h3>
           <p className="text-sm text-slate-600">
-            Your statement includes income that isn’t taxed at the normal rate, so it’s shown here for
-            completeness but kept out of the simple refund figure above (it needs the Fünftelregelung
-            and Progressionsvorbehalt, planned for a later phase):
+            Your statement includes income that isn’t taxed at the normal rate. These are now folded
+            into the estimate above:
           </p>
           <table className="w-full text-sm">
             <tbody>
               {result.specialIncome > 0 && (
                 <tr className="border-t border-indigo-100">
-                  <td className="py-1.5">Multi-year / reduced-rate pay <span className="text-xs text-slate-400">ermäßigt besteuert · Nr. 9/10</span></td>
+                  <td className="py-1.5">
+                    Multi-year / severance pay → Fünftelregelung
+                    <span className="block text-xs text-slate-400">ermäßigt besteuert · Nr. 9/10 — taxed as if spread over 5 years</span>
+                  </td>
                   <td className="py-1.5 text-right tabular-nums">{formatEur(result.specialIncome)}</td>
                 </tr>
               )}
               {result.specialTaxWithheld > 0 && (
                 <tr className="border-t border-indigo-100">
-                  <td className="py-1.5">Tax withheld on that pay <span className="text-xs text-slate-400">Nr. 11/12/13 — counts toward your final bill</span></td>
+                  <td className="py-1.5">
+                    Tax already withheld on it
+                    <span className="block text-xs text-slate-400">Nr. 11/12/13 — included in “already withheld”</span>
+                  </td>
                   <td className="py-1.5 text-right tabular-nums">{formatEur(result.specialTaxWithheld)}</td>
                 </tr>
               )}
               {result.dbaIncome > 0 && (
                 <tr className="border-t border-indigo-100">
-                  <td className="py-1.5">Treaty-exempt wage <span className="text-xs text-slate-400">steuerfrei nach DBA · Nr. 6 — raises your rate (Progressionsvorbehalt)</span></td>
+                  <td className="py-1.5">
+                    Treaty-exempt wage → Progressionsvorbehalt
+                    <span className="block text-xs text-slate-400">steuerfrei nach DBA · Nr. 6 — tax-free but raises your rate</span>
+                  </td>
                   <td className="py-1.5 text-right tabular-nums">{formatEur(result.dbaIncome)}</td>
                 </tr>
               )}
-              <tr className="border-t border-indigo-200 font-medium">
-                <td className="py-1.5">Total tax withheld on your statement (all blocks)</td>
-                <td className="py-1.5 text-right tabular-nums">{formatEur(result.totalTaxWithheldAll)}</td>
-              </tr>
+              {result.lohnReplacement > 0 && (
+                <tr className="border-t border-indigo-100">
+                  <td className="py-1.5">
+                    Wage-replacement benefits → Progressionsvorbehalt
+                    <span className="block text-xs text-slate-400">Lohnersatzleistungen · Nr. 15 — tax-free but raises your rate</span>
+                  </td>
+                  <td className="py-1.5 text-right tabular-nums">{formatEur(result.lohnReplacement)}</td>
+                </tr>
+              )}
             </tbody>
           </table>
+          <p className="text-xs text-slate-400">
+            These are simplified implementations of §34 (Fünftelregelung) and §32b
+            (Progressionsvorbehalt) for guidance — verify against ELSTER before filing.
+          </p>
         </div>
       )}
 

@@ -146,6 +146,53 @@ const RULES: FieldRule[] = [
   { line: '28', used: true, label: 'Private health/care or min. provision', germanLabel: 'Private Kranken-/Pflege-Pflichtversicherung oder Mindestvorsorgepauschale', captions: ['privaten kranken', 'mindestvorsorgepauschale'] },
 ];
 
+// --- Generic line capture ----------------------------------------------------
+// So that *every* numbered line on the statement is visible (not only the ones
+// we map by caption), we also detect line-number tokens and read the amount in
+// each token's segment. Lines already covered by a caption rule are skipped.
+
+interface LineToken {
+  id: string;
+  pos: number;
+  contentStart: number;
+}
+
+// "12." / "22a)" / "22 a)", or a lone sub-letter "a)" following a master number.
+const TOKEN_RE = /(?<![\d.,])(\d{1,2})\s*([a-c])?\s*[.)](?!\d)|(?<=\s)([a-c])\)/gi;
+
+function detectTokens(text: string): LineToken[] {
+  const tokens: LineToken[] = [];
+  let master = '';
+  for (const m of text.matchAll(TOKEN_RE)) {
+    let id: string;
+    if (m[1] !== undefined) {
+      master = m[1];
+      id = m[2] ? master + m[2].toLowerCase() : master;
+    } else if (m[3] !== undefined && master) {
+      id = master + m[3].toLowerCase();
+    } else {
+      continue;
+    }
+    const base = Number.parseInt(id, 10);
+    if (!(base >= 3 && base <= 30)) continue;
+    const pos = m.index ?? 0;
+    tokens.push({ id, pos, contentStart: pos + m[0].length });
+  }
+  return tokens;
+}
+
+function segmentAmounts(text: string): Map<string, number> {
+  const tokens = detectTokens(text);
+  const map = new Map<string, number>();
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    const end = i + 1 < tokens.length ? tokens[i + 1].pos : Math.min(text.length, t.contentStart + 160);
+    const amount = bestAmount(text.slice(t.contentStart, end));
+    if (amount !== null && !map.has(t.id)) map.set(t.id, amount);
+  }
+  return map;
+}
+
 export interface ParseResult {
   fields: ParsedField[];
   data: LohnsteuerData;
@@ -158,9 +205,11 @@ export function parseLohnsteuer(text: string, source: 'pdf' | 'ocr'): ParseResul
   const baseConfidence = source === 'pdf' ? 'high' : 'medium';
   const lower = text.toLowerCase();
   const fields: ParsedField[] = [];
+  const covered = new Set<string>();
 
   let found = 0;
   for (const rule of RULES) {
+    covered.add(rule.line);
     const v = findByCaption(text, lower, rule.captions, rule.prefix);
     const matched = v !== null;
     if (matched) found++;
@@ -174,8 +223,36 @@ export function parseLohnsteuer(text: string, source: 'pdf' | 'ocr'): ParseResul
     });
   }
 
+  // Surface any other numbered lines present on the statement so nothing is
+  // hidden. These are captured for reference (not used in the estimate).
+  const seg = segmentAmounts(text);
+  const extras = [...seg.keys()]
+    .filter((id) => !covered.has(id) && !covered.has(`${id}a`) && !covered.has(`${id}b`))
+    .sort((a, b) => Number.parseInt(a, 10) - Number.parseInt(b, 10) || a.localeCompare(b));
+  for (const id of extras) {
+    found++;
+    fields.push({
+      line: id,
+      label: `Line ${id}`,
+      germanLabel: KNOWN_EXTRA_LABELS[id] ?? 'Vom Beleg erfasst',
+      value: seg.get(id) ?? 0,
+      confidence: baseConfidence,
+      used: false,
+    });
+  }
+
   return { fields, data: fieldsToData(fields), empty: found === 0 };
 }
+
+// German labels for lines we capture generically but don't map into the estimate.
+const KNOWN_EXTRA_LABELS: Record<string, string> = {
+  '16': 'Steuerfreie Arbeitgeberleistungen (Auswärtstätigkeit/Sammelbeförderung)',
+  '18': 'Pauschal besteuerte Arbeitgeberleistungen (Fahrten Wohnung–Arbeit)',
+  '20': 'Steuerfreie Verpflegungszuschüsse bei Auswärtstätigkeit',
+  '21': 'Steuerfreie Arbeitgeberleistungen bei doppelter Haushaltsführung',
+  '24': 'Steuerfreie Arbeitgeberzuschüsse Kranken-/Pflegeversicherung',
+  '29': 'Bemessungsgrundlage für den Versorgungsfreibetrag',
+};
 
 /** Build an empty field list for fully manual entry. */
 export function emptyFields(): ParsedField[] {
@@ -203,6 +280,7 @@ export function fieldsToData(fields: ParsedField[]): LohnsteuerData {
     churchTaxSpecial: g('13') + g('14'),
     specialIncome: g('9') + g('10'),
     dbaIncome: g('6'),
+    lohnReplacement: g('15'),
     agCommuteUntaxed: g('17'),
     pensionEmployer: g('22a'),
     pensionEmployee: g('23a'),
@@ -224,6 +302,7 @@ export function dataToFields(data: LohnsteuerData): ParsedField[] {
     '12': data.soliSpecial,
     '10': data.specialIncome,
     '6': data.dbaIncome,
+    '15': data.lohnReplacement,
     '17': data.agCommuteUntaxed,
     '22a': data.pensionEmployer,
     '23a': data.pensionEmployee,

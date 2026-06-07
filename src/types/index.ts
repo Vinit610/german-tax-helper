@@ -50,6 +50,8 @@ export interface LohnsteuerData {
   specialIncome: number;
   /** Nr. 6 — Steuerfreier Arbeitslohn nach DBA/ATE (Progressionsvorbehalt). */
   dbaIncome: number;
+  /** Nr. 15 — Kurzarbeitergeld u. a. Lohnersatzleistungen (Progressionsvorbehalt). */
+  lohnReplacement: number;
   /** Nr. 17 — Steuerfreie AG-Leistungen, auf die Entfernungspauschale anrechenbar. */
   agCommuteUntaxed: number;
 

@@ -13,7 +13,7 @@ import {
   type VorsorgeResult,
   type WerbungskostenResult,
 } from './deductions';
-import { einkommensteuer, kirchensteuer, marginalRate, soli } from './incomeTax';
+import { einkommensteuerGesamt, kirchensteuer, marginalRate, soli } from './incomeTax';
 import { ELSTER_DEDUCTION, ELSTER_LSTB } from './elster';
 
 export interface AnlageSection {
@@ -51,12 +51,19 @@ export interface EstimateResult {
   /** Positive = refund expected; negative = additional payment due. */
   refund: number;
 
-  // Specially-taxed / tax-free items captured but NOT in the simple estimate.
+  // Special-rate items now folded into the estimate.
+  /** Nr. 9/10 — extraordinary income taxed via the Fünftelregelung. */
   specialIncome: number;
+  /** Tax withheld on the special block (Nr. 11/12/13). */
   specialTaxWithheld: number;
+  /** Nr. 6 — treaty-exempt wage (Progressionsvorbehalt). */
   dbaIncome: number;
-  /** Total tax withheld across both blocks (for completeness). */
-  totalTaxWithheldAll: number;
+  /** Nr. 15 — wage-replacement benefits (Progressionsvorbehalt). */
+  lohnReplacement: number;
+  /** Tax-free income raising the rate (Nr. 6 + 15). */
+  progIncome: number;
+  /** Whether the Fünftelregelung / Progressionsvorbehalt affected the result. */
+  usesSpecialRates: boolean;
 
   marginalRatePct: number;
   averageRatePct: number;
@@ -77,7 +84,13 @@ export function computeEstimate(state: AppState): EstimateResult | null {
     l.grossSalary - werbungskosten.applied - vorsorge.total - sonderausgaben.applied,
   );
 
-  const incomeTax = einkommensteuer(taxableIncome, p.assessmentType);
+  // Tax-free income subject to Progressionsvorbehalt (raises the rate): treaty-
+  // exempt wages (Nr. 6) + wage-replacement benefits (Nr. 15).
+  const progIncome = l.dbaIncome + l.lohnReplacement;
+  // Extraordinary income taxed via the Fünftelregelung (Nr. 9/10).
+  const extraordinary = l.specialIncome;
+
+  const incomeTax = einkommensteuerGesamt(taxableIncome, extraordinary, progIncome, p.assessmentType);
   const soliAmount = soli(incomeTax, p.assessmentType);
   // Combined church rate for joint members (simplified): both same rate → rate × tax.
   const churchRate = (joint
@@ -86,7 +99,14 @@ export function computeEstimate(state: AppState): EstimateResult | null {
   const churchTax = kirchensteuer(incomeTax, churchRate);
   const totalLiability = incomeTax + soliAmount + churchTax;
 
-  const totalWithheld = l.incomeTaxWithheld + l.soliWithheld + l.churchTaxWithheld;
+  // All tax withheld across both blocks (regular Nr. 4/5/7/8 + special Nr. 11–14).
+  const totalWithheld =
+    l.incomeTaxWithheld +
+    l.soliWithheld +
+    l.churchTaxWithheld +
+    l.incomeTaxSpecial +
+    l.soliSpecial +
+    l.churchTaxSpecial;
   const refund = Math.round((totalWithheld - totalLiability) * 100) / 100;
 
   const sections: AnlageSection[] = [
@@ -164,11 +184,9 @@ export function computeEstimate(state: AppState): EstimateResult | null {
     specialIncome: l.specialIncome,
     specialTaxWithheld: Math.round((l.incomeTaxSpecial + l.soliSpecial + l.churchTaxSpecial) * 100) / 100,
     dbaIncome: l.dbaIncome,
-    totalTaxWithheldAll:
-      Math.round(
-        (l.incomeTaxWithheld + l.soliWithheld + l.churchTaxWithheld + l.incomeTaxSpecial + l.soliSpecial + l.churchTaxSpecial) *
-          100,
-      ) / 100,
+    lohnReplacement: l.lohnReplacement,
+    progIncome,
+    usesSpecialRates: extraordinary > 0 || progIncome > 0,
     marginalRatePct: Math.round(marginalRate(taxableIncome, p.assessmentType) * 1000) / 10,
     averageRatePct: taxableIncome > 0 ? Math.round((incomeTax / taxableIncome) * 1000) / 10 : 0,
   };

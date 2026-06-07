@@ -55,6 +55,45 @@ export function marginalRate(zvE: number, assessment: AssessmentType): number {
 }
 
 /**
+ * Progressionsvorbehalt (§ 32b EStG): tax-free income such as wage-replacement
+ * benefits (Lohnersatzleistungen, Nr. 15) or treaty-exempt foreign wages (Nr. 6)
+ * isn't taxed itself, but raises the average rate applied to the taxable income.
+ *
+ * Returns the income tax on `zvE` using the rate that would apply to
+ * `zvE + progIncome`.
+ */
+export function einkommensteuerMitProgression(
+  zvE: number,
+  progIncome: number,
+  assessment: AssessmentType,
+): number {
+  if (progIncome <= 0) return einkommensteuer(zvE, assessment);
+  const total = zvE + progIncome;
+  if (total <= 0) return 0;
+  const rate = einkommensteuer(total, assessment) / total;
+  return Math.floor(rate * zvE);
+}
+
+/**
+ * Fünftelregelung (§ 34 EStG) for extraordinary income (multi-year pay /
+ * severance, Nr. 9/10). The extra income is taxed as if spread over five years,
+ * which softens the progression:
+ *   ESt = ESt(zvE) + 5 × [ESt(zvE + extra/5) − ESt(zvE)]
+ * Progressionsvorbehalt (if any) is applied consistently in both terms.
+ */
+export function einkommensteuerGesamt(
+  zvE: number,
+  extraordinary: number,
+  progIncome: number,
+  assessment: AssessmentType,
+): number {
+  const base = einkommensteuerMitProgression(zvE, progIncome, assessment);
+  if (extraordinary <= 0) return base;
+  const withFifth = einkommensteuerMitProgression(zvE + extraordinary / 5, progIncome, assessment);
+  return base + 5 * (withFifth - base);
+}
+
+/**
  * Solidarity surcharge (Solidaritätszuschlag), 2025. 5.5% of income tax, but
  * only above a Freigrenze with a phase-in zone (Milderungszone). For the vast
  * majority of salaried employees this is now €0.
