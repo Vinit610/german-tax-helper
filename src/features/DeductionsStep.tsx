@@ -16,7 +16,7 @@ export function DeductionsStep({ onNext, onBack }: { onNext: () => void; onBack:
   const { state, setDeductions } = useStore();
   const d = state.deductions;
 
-  const commute = commuteAllowance(d.commuteOneWayKm, d.commuteDays);
+  const commute = commuteAllowance(d.commuteOneWayKm, d.commuteDays, d.commuteMode);
   const homeOffice = homeOfficeAllowance(d.homeOfficeDays);
   const wk = computeWerbungskosten(d);
 
@@ -56,6 +56,32 @@ export function DeductionsStep({ onNext, onBack }: { onNext: () => void; onBack:
             suffix="days"
             hint={commute > 0 ? `Commute allowance: ${formatEur(commute)}` : 'Typically ~220 office days'}
           />
+          <label className="block">
+            <span className="label">
+              Main transport · <span className="font-normal text-slate-400">Verkehrsmittel</span>
+            </span>
+            <select
+              className="input"
+              value={d.commuteMode}
+              onChange={(e) => setDeductions({ commuteMode: e.target.value as 'car' | 'public' | 'other' })}
+            >
+              <option value="car">Own car (no €4,500 cap)</option>
+              <option value="public">Public transport</option>
+              <option value="other">Bike / walk / carpool</option>
+            </select>
+            <span className="mt-1 block text-xs text-slate-400">
+              Non-car commuting is capped at €4,500/year (Entfernungspauschale).
+            </span>
+          </label>
+          {d.commuteMode === 'public' && (
+            <NumberField
+              label="Actual public-transport cost (year)"
+              germanLabel="Tatsächliche ÖPNV-Kosten"
+              value={d.commutePublicCost}
+              onChange={(v) => setDeductions({ commutePublicCost: v })}
+              hint="Deductible if higher than the distance allowance"
+            />
+          )}
           <NumberField
             label="Home-office days"
             germanLabel="Homeoffice-Pauschale"
@@ -72,12 +98,39 @@ export function DeductionsStep({ onNext, onBack }: { onNext: () => void; onBack:
             hint="Laptop, desk, tools, etc."
           />
           <NumberField
-            label="Other work costs"
-            germanLabel="Sonstige Werbungskosten"
-            value={d.otherWorkCosts}
-            onChange={(v) => setDeductions({ otherWorkCosts: v })}
-            hint="Training, professional memberships, applications"
+            label="Professional / union dues"
+            germanLabel="Beiträge zu Berufsverbänden"
+            value={d.unionDues}
+            onChange={(v) => setDeductions({ unionDues: v })}
+            hint="Union or professional-association membership"
           />
+          <NumberField
+            label="Training / further education"
+            germanLabel="Fortbildungskosten"
+            value={d.trainingCosts}
+            onChange={(v) => setDeductions({ trainingCosts: v })}
+            hint="Courses, seminars, professional literature"
+          />
+          <NumberField
+            label="Application & other costs"
+            germanLabel="Bewerbungskosten u. a."
+            value={d.applicationCosts}
+            onChange={(v) => setDeductions({ applicationCosts: v })}
+            hint="Job applications, account fees, etc."
+          />
+          <label className="block sm:col-span-2">
+            <span className="label">
+              First place of work (optional) ·{' '}
+              <span className="font-normal text-slate-400">Erste Tätigkeitsstätte</span>
+            </span>
+            <input
+              className="input"
+              type="text"
+              placeholder="Employer address — Anlage N asks for it"
+              value={d.firstWorkplace}
+              onChange={(e) => setDeductions({ firstWorkplace: e.target.value })}
+            />
+          </label>
         </div>
 
         <div className="rounded-lg bg-slate-50 px-4 py-3 text-sm">
@@ -109,13 +162,29 @@ export function DeductionsStep({ onNext, onBack }: { onNext: () => void; onBack:
             onChange={(v) => setDeductions({ donations: v })}
           />
           <NumberField
-            label="Additional private insurance"
-            germanLabel="Weitere Versicherungen"
-            value={d.otherInsurance}
-            onChange={(v) => setDeductions({ otherInsurance: v })}
-            hint="Liability, accident, etc. (often capped — may not change the result)"
+            label="Liability insurance"
+            germanLabel="Haftpflichtversicherung"
+            value={d.liabilityInsurance}
+            onChange={(v) => setDeductions({ liabilityInsurance: v })}
+          />
+          <NumberField
+            label="Accident insurance (private)"
+            germanLabel="Unfallversicherung"
+            value={d.accidentInsurance}
+            onChange={(v) => setDeductions({ accidentInsurance: v })}
+          />
+          <NumberField
+            label="Term life / risk insurance"
+            germanLabel="Risikolebensversicherung"
+            value={d.termLifeInsurance}
+            onChange={(v) => setDeductions({ termLifeInsurance: v })}
           />
         </div>
+        <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
+          These “other” insurances count only within the €1,900 cap for sonstige
+          Vorsorgeaufwendungen, which your statutory health + care contributions usually already use
+          up — so they often won’t change the result, but the tool still maps them to the form.
+        </p>
       </section>
 
       <div className="flex justify-between">

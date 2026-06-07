@@ -4,13 +4,15 @@
 import { useMemo } from 'react';
 import { AnlageBadge } from '../components/AnlageBadge';
 import { computeEstimate } from '../lib/tax/estimate';
-import { ELSTER_LSTB } from '../lib/tax/elster';
+import { ANLAGE_AUS, ANLAGE_KAP, ELSTER_LSTB, FORM_OVERVIEW, LINE_NUMBER_DISCLAIMER } from '../lib/tax/elster';
+import { findMissing } from '../lib/tax/checks';
 import { formatEur, formatPct } from '../lib/format';
 import { useStore } from '../state/store';
 
 export function ResultsStep({ onBack }: { onBack: () => void }) {
-  const { state } = useStore();
+  const { state, setStep } = useStore();
   const result = useMemo(() => computeEstimate(state), [state]);
+  const missing = useMemo(() => findMissing(state), [state]);
 
   if (!result) {
     return (
@@ -56,6 +58,33 @@ export function ResultsStep({ onBack }: { onBack: () => void }) {
           <Stat label="Marginal rate" hint="Grenzsteuersatz" value={formatPct(result.marginalRatePct)} />
         </dl>
       </div>
+
+      {/* Missing information the forms need */}
+      {missing.length > 0 && (
+        <div className="card space-y-3 border-amber-200 bg-amber-50/40">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-amber-700">
+            To complete your forms, please add
+          </h3>
+          <ul className="space-y-2">
+            {missing.map((m, i) => (
+              <li key={i} className="flex items-start justify-between gap-3 rounded-lg bg-white/70 px-3 py-2">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-medium ${m.severity === 'warn' ? 'text-rose-700' : 'text-slate-700'}`}>
+                      {m.title}
+                    </span>
+                    <span className="anlage-badge">{m.form}</span>
+                  </div>
+                  <p className="mt-0.5 text-xs text-slate-500">{m.detail}</p>
+                </div>
+                <button className="btn-ghost shrink-0 px-3 py-1 text-xs" onClick={() => setStep(m.step)}>
+                  Fix →
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* How we got there */}
       <div className="card space-y-3">
@@ -120,11 +149,7 @@ export function ResultsStep({ onBack }: { onBack: () => void }) {
             ))}
           </tbody>
         </table>
-        <p className="text-xs text-slate-400">
-          Line numbers (Zeilen) refer to the 2024/2025 forms and can shift slightly year to year — the
-          German caption and the “lt. Nr. … der Lohnsteuerbescheinigung” reference are the reliable
-          anchors inside ELSTER.
-        </p>
+        <p className="text-xs text-slate-400">{LINE_NUMBER_DISCLAIMER}</p>
       </div>
 
       {/* Per-Anlage breakdown */}
@@ -147,6 +172,7 @@ export function ResultsStep({ onBack }: { onBack: () => void }) {
                       <div className="mt-0.5 text-xs text-brand-600">
                         ELSTER: <span className="font-medium">{item.elster.form}</span>, {item.elster.line} —{' '}
                         {item.elster.caption}
+                        {item.elster.verify && <span className="ml-1 text-amber-500" title="Verify line number against your form">⚠ verify line</span>}
                       </div>
                     )}
                   </td>
@@ -164,14 +190,60 @@ export function ResultsStep({ onBack }: { onBack: () => void }) {
         </div>
       ))}
 
-      {/* Deferred features */}
-      <div className="card bg-slate-50">
-        <h3 className="text-sm font-semibold text-slate-700">Not yet included</h3>
-        <p className="mt-1 text-sm text-slate-500">
-          This MVP covers salaried, full-year residents. Coming later: Indian income (RSU/ESPP via
-          Anlage N-AUS, capital gains via Anlage KAP/KAP-INV) with India–Germany double-taxation
-          relief, part-year residency, special rates (Progressionsvorbehalt, Abgeltungsteuer,
-          Fünftelregelung), child allowances, and ELSTER export.
+      {/* Which form each thing goes on */}
+      <div className="card space-y-3">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+          The forms & where your data comes from
+        </h3>
+        <table className="w-full text-sm">
+          <tbody>
+            {FORM_OVERVIEW.map((f) => (
+              <tr key={f.form} className="border-b border-slate-100 last:border-0">
+                <td className="py-1.5 align-top">
+                  <AnlageBadge name={f.form} />
+                </td>
+                <td className="py-1.5 align-top text-slate-700">
+                  {f.english}
+                  <div className="text-xs text-slate-400">Fed from: {f.fedFrom}</div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Reference-only forms for later phases */}
+      <div className="card bg-slate-50 space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-700">Capital & foreign income — reference only</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            Not part of this salaried MVP, but the tool already speaks these forms. When the
+            India-income phase lands, your data will map to these exact lines (capital gains incl.
+            RSU/ESPP and India–Germany DTAA / foreign-tax credit):
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {[
+            { name: 'Anlage KAP', rows: ANLAGE_KAP },
+            { name: 'Anlage AUS', rows: ANLAGE_AUS },
+          ].map((g) => (
+            <div key={g.name}>
+              <div className="mb-1">
+                <AnlageBadge name={g.name} />
+              </div>
+              <ul className="space-y-1 text-xs text-slate-500">
+                {g.rows.map((r, i) => (
+                  <li key={i}>
+                    <span className="font-medium text-slate-600">{r.line}</span> — {r.caption}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-slate-400">
+          Also coming later: part-year residency, special rates (Progressionsvorbehalt,
+          Abgeltungsteuer, Fünftelregelung), Anlage Kind, and ELSTER export. {LINE_NUMBER_DISCLAIMER}
         </p>
       </div>
 

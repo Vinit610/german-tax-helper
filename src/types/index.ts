@@ -72,18 +72,32 @@ export interface Deductions {
   commuteOneWayKm: number;
   /** Number of days commuted to the workplace in the year. */
   commuteDays: number;
+  /** Main mode of transport — affects the €4,500 cap (no cap when using a car). */
+  commuteMode: 'car' | 'public' | 'other';
+  /** Actual annual public-transport cost (claimable if above the Pauschale). */
+  commutePublicCost: number;
+  /** Address of the first place of work (Anlage N asks for it; optional here). */
+  firstWorkplace: string;
   /** Home-office days (Homeoffice-Pauschale, €6/day, max 210 days). */
   homeOfficeDays: number;
   /** Work equipment / tools (Arbeitsmittel) total in EUR. */
   workEquipment: number;
-  /** Professional memberships, training, applications, etc. */
-  otherWorkCosts: number;
+  /** Professional association / union dues (Beiträge zu Berufsverbänden). */
+  unionDues: number;
+  /** Training / further education (Fortbildungskosten). */
+  trainingCosts: number;
+  /** Job-application costs and other minor Werbungskosten. */
+  applicationCosts: number;
 
   // --- Sonderausgaben (special expenses) ---
   /** Charitable donations (Spenden). */
   donations: number;
-  /** Additional private insurance premiums not on the wage statement. */
-  otherInsurance: number;
+  /** Private liability insurance (Haftpflichtversicherung). */
+  liabilityInsurance: number;
+  /** Accident insurance (Unfallversicherung, private share). */
+  accidentInsurance: number;
+  /** Term life / risk insurance (Risikolebensversicherung). */
+  termLifeInsurance: number;
 }
 
 /** Everything the user has entered/parsed, persisted to localStorage. */

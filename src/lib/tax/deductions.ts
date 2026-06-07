@@ -5,7 +5,7 @@
 // disclaimers in the UI.
 
 import type { Deductions, LohnsteuerData } from '../../types';
-import { ELSTER_DEDUCTION, ELSTER_LSTB, type ElsterRef } from './elster';
+import { ELSTER_DEDUCTION, ELSTER_LSTB, type FormRef } from './elster';
 
 // --- Official 2025 lump sums & caps -----------------------------------------
 
@@ -32,7 +32,7 @@ export interface LineItem {
   amount: number;
   note?: string;
   /** Where to enter this value when filing on ELSTER. */
-  elster?: ElsterRef;
+  elster?: FormRef;
 }
 
 export interface WerbungskostenResult {
@@ -44,12 +44,24 @@ export interface WerbungskostenResult {
   usedPauschbetrag: boolean;
 }
 
-/** Entfernungspauschale: distance lump sum based on one-way km × work days. */
-export function commuteAllowance(oneWayKm: number, days: number): number {
+/** Annual cap on the Entfernungspauschale unless a car is used. */
+export const COMMUTE_CAP_NON_CAR = 4500;
+
+/**
+ * Entfernungspauschale: distance lump sum based on one-way km × work days.
+ * Capped at €4,500/year unless the commuter uses their own car (then uncapped).
+ */
+export function commuteAllowance(
+  oneWayKm: number,
+  days: number,
+  mode: 'car' | 'public' | 'other' = 'car',
+): number {
   if (oneWayKm <= 0 || days <= 0) return 0;
   const near = Math.min(oneWayKm, COMMUTE_NEAR_KM) * COMMUTE_RATE_NEAR;
   const far = Math.max(0, oneWayKm - COMMUTE_NEAR_KM) * COMMUTE_RATE_FAR;
-  return Math.round((near + far) * days * 100) / 100;
+  const raw = (near + far) * days;
+  const capped = mode === 'car' ? raw : Math.min(raw, COMMUTE_CAP_NON_CAR);
+  return Math.round(capped * 100) / 100;
 }
 
 export function homeOfficeAllowance(days: number): number {
@@ -59,14 +71,19 @@ export function homeOfficeAllowance(days: number): number {
 
 /** Werbungskosten (income-related expenses) → Anlage N. */
 export function computeWerbungskosten(d: Deductions): WerbungskostenResult {
-  const commute = commuteAllowance(d.commuteOneWayKm, d.commuteDays);
+  const pauschale = commuteAllowance(d.commuteOneWayKm, d.commuteDays, d.commuteMode);
+  // For public transport you may claim actual cost if it exceeds the Pauschale.
+  const commute = d.commuteMode !== 'car' ? Math.max(pauschale, d.commutePublicCost) : pauschale;
   const homeOffice = homeOfficeAllowance(d.homeOfficeDays);
   const items: LineItem[] = [
     {
       label: 'Commute allowance',
       germanLabel: 'Entfernungspauschale',
       amount: commute,
-      note: `${d.commuteOneWayKm} km one-way × ${d.commuteDays} days`,
+      note:
+        d.commuteMode !== 'car' && d.commutePublicCost > pauschale
+          ? `actual public-transport cost (above the €${pauschale.toFixed(0)} Pauschale)`
+          : `${d.commuteOneWayKm} km one-way × ${d.commuteDays} days`,
       elster: ELSTER_DEDUCTION.commute,
     },
     {
@@ -77,7 +94,9 @@ export function computeWerbungskosten(d: Deductions): WerbungskostenResult {
       elster: ELSTER_DEDUCTION.homeOffice,
     },
     { label: 'Work equipment', germanLabel: 'Arbeitsmittel', amount: d.workEquipment, elster: ELSTER_DEDUCTION.equipment },
-    { label: 'Other work costs', germanLabel: 'Sonstige Werbungskosten', amount: d.otherWorkCosts, elster: ELSTER_DEDUCTION.otherWork },
+    { label: 'Professional/union dues', germanLabel: 'Beiträge zu Berufsverbänden', amount: d.unionDues, elster: ELSTER_DEDUCTION.unionDues },
+    { label: 'Training / further education', germanLabel: 'Fortbildungskosten', amount: d.trainingCosts, elster: ELSTER_DEDUCTION.training },
+    { label: 'Application & other costs', germanLabel: 'Bewerbungskosten u. a.', amount: d.applicationCosts, elster: ELSTER_DEDUCTION.applications },
   ];
   const actual = items.reduce((s, i) => s + i.amount, 0);
   const applied = Math.max(actual, ARBEITNEHMER_PAUSCHBETRAG);
@@ -116,7 +135,9 @@ export function computeVorsorge(l: LohnsteuerData, d: Deductions, joint: boolean
 
   const cap = joint ? SONSTIGE_VORSORGE_CAP * 2 : SONSTIGE_VORSORGE_CAP;
   const remaining = Math.max(0, cap - basisHealthCare);
-  const otherProvision = Math.min(l.unemploymentInsuranceEmployee + d.otherInsurance, remaining);
+  const otherInsurance =
+    d.liabilityInsurance + d.accidentInsurance + d.termLifeInsurance;
+  const otherProvision = Math.min(l.unemploymentInsuranceEmployee + otherInsurance, remaining);
 
   const items: LineItem[] = [
     {

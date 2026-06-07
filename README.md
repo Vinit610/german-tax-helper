@@ -39,6 +39,13 @@ German salaried, **full-year resident**, **tax year 2025**:
   Lohnsteuerbescheinigung lines to form fields.
 - **Tax engine:** the official §32a EStG 2025 tariff (basic + splitting),
   solidarity surcharge, and church tax.
+- **Form-strict references:** every value maps to a specific Anlage line
+  (`src/lib/tax/elster.ts`) — Anlage N, Anlage Vorsorgeaufwand, plus
+  reference-only Anlage KAP / Anlage AUS for the later capital/foreign-income
+  phase. Line numbers follow the official 2024/2025 Anleitungen and carry a
+  `verify` flag where they still need confirming against the exact PDF; the
+  Results page shows a "to complete your forms, please add …" panel for any data
+  the wage certificate doesn't supply.
 
 ### Project layout
 
