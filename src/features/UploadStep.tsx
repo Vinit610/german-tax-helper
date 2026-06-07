@@ -7,7 +7,7 @@ import { AnlageBadge } from '../components/AnlageBadge';
 import { NumberField } from '../components/NumberField';
 import { extractPdf, hasUsableText } from '../lib/parsing/pdf';
 import { ocrCanvases } from '../lib/parsing/ocr';
-import { emptyFields, fieldsToData, parseLohnsteuer } from '../lib/parsing/lohnsteuer';
+import { emptyFields, parseLohnsteuer } from '../lib/parsing/lohnsteuer';
 import { useStore } from '../state/store';
 import type { ParsedField } from '../types';
 
@@ -21,12 +21,13 @@ const FOLLOW_UP_DOCS = [
 ];
 
 export function UploadStep({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
-  const { state, setLohnsteuer, toggleDoc } = useStore();
-  const [phase, setPhase] = useState<Phase>(state.lohnsteuer ? 'review' : 'idle');
-  const [fields, setFields] = useState<ParsedField[]>(emptyFields);
+  const { state, setWageLines, toggleDoc } = useStore();
+  const [phase, setPhase] = useState<Phase>(state.wageLines ? 'review' : 'idle');
+  const [fields, setFields] = useState<ParsedField[]>(() => state.wageLines ?? emptyFields());
   const [progress, setProgress] = useState(0);
-  const [source, setSource] = useState<'pdf' | 'ocr' | 'manual'>('manual');
+  const [source, setSource] = useState<'pdf' | 'ocr' | 'manual'>(state.wageLines ? 'pdf' : 'manual');
   const [errorMsg, setErrorMsg] = useState('');
+  const [showOther, setShowOther] = useState(false);
 
   async function handleFile(file: File) {
     setErrorMsg('');
@@ -48,19 +49,23 @@ export function UploadStep({ onNext, onBack }: { onNext: () => void; onBack: () 
       const result = parseLohnsteuer(text, src);
       setFields(result.fields);
       setSource(result.empty ? 'manual' : src);
-      setLohnsteuer(result.data);
+      setWageLines(result.fields);
       setPhase('review');
     } catch (err) {
       console.error(err);
       setErrorMsg('Could not read that file. You can enter the values manually below.');
-      setFields(emptyFields());
+      const ef = emptyFields();
+      setFields(ef);
+      setWageLines(ef);
       setSource('manual');
       setPhase('review');
     }
   }
 
   function startManual() {
-    setFields(emptyFields());
+    const ef = emptyFields();
+    setFields(ef);
+    setWageLines(ef);
     setSource('manual');
     setPhase('review');
   }
@@ -68,7 +73,7 @@ export function UploadStep({ onNext, onBack }: { onNext: () => void; onBack: () 
   function updateField(line: string, value: number) {
     const next = fields.map((f) => (f.line === line ? { ...f, value, edited: true } : f));
     setFields(next);
-    setLohnsteuer(fieldsToData(next));
+    setWageLines(next);
   }
 
   const confidenceColor = (c: ParsedField['confidence']) =>
@@ -143,26 +148,46 @@ export function UploadStep({ onNext, onBack }: { onNext: () => void; onBack: () 
             {source === 'manual' && 'Enter the values from your Lohnsteuerbescheinigung. The line numbers match the form.'}
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            {fields.map((f) => (
-              <div key={f.line} className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-400">Line {f.line}</span>
-                  {source !== 'manual' && (
-                    <span className={`text-xs ${confidenceColor(f.confidence)}`}>
-                      {f.edited ? 'edited' : f.confidence}
-                    </span>
-                  )}
-                </div>
-                <NumberField
-                  label={f.label}
-                  germanLabel={f.germanLabel}
-                  value={f.value}
-                  onChange={(v) => updateField(f.line, v)}
-                />
-              </div>
-            ))}
+          <div>
+            <h3 className="mb-3 text-sm font-semibold text-slate-700">Used in your estimate</h3>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {fields.filter((f) => f.used).map((f) => (
+                <FieldRow key={f.line} field={f} source={source} onChange={updateField} confidenceColor={confidenceColor} />
+              ))}
+            </div>
           </div>
+
+          {fields.some((f) => !f.used) && (
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowOther((v) => !v)}
+                className="flex w-full items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              >
+                <span>
+                  Other lines on your statement
+                  <span className="ml-1 font-normal text-slate-400">
+                    · captured for reference ({fields.filter((f) => !f.used).length})
+                  </span>
+                </span>
+                <span className="text-slate-400">{showOther ? '▲' : '▼'}</span>
+              </button>
+              {showOther && (
+                <>
+                  <p className="mt-2 text-xs text-slate-400">
+                    These aren’t used in the simplified estimate yet (some belong to later phases, e.g.
+                    treaty-exempt income or special tax rates), but they’re captured so you can verify
+                    them and use them when filing.
+                  </p>
+                  <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                    {fields.filter((f) => !f.used).map((f) => (
+                      <FieldRow key={f.line} field={f} source={source} onChange={updateField} confidenceColor={confidenceColor} />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
 
           <FollowUpChecklist checked={state.followUpDocs} onToggle={toggleDoc} />
         </div>
@@ -178,6 +203,37 @@ export function UploadStep({ onNext, onBack }: { onNext: () => void; onBack: () 
           Continue →
         </button>
       </div>
+    </div>
+  );
+}
+
+function FieldRow({
+  field: f,
+  source,
+  onChange,
+  confidenceColor,
+}: {
+  field: ParsedField;
+  source: 'pdf' | 'ocr' | 'manual';
+  onChange: (line: string, value: number) => void;
+  confidenceColor: (c: ParsedField['confidence']) => string;
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-slate-400">Line {f.line}</span>
+        {source !== 'manual' && (
+          <span className={`text-xs ${confidenceColor(f.confidence)}`}>
+            {f.edited ? 'edited' : f.confidence}
+          </span>
+        )}
+      </div>
+      <NumberField
+        label={f.label}
+        germanLabel={f.germanLabel}
+        value={f.value}
+        onChange={(v) => onChange(f.line, v)}
+      />
     </div>
   );
 }

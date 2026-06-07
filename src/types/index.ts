@@ -62,6 +62,8 @@ export interface ParsedField<T = number> {
   confidence: 'high' | 'medium' | 'low';
   /** Whether the user has edited/confirmed the value. */
   edited?: boolean;
+  /** Whether this line feeds the estimate (vs. captured for reference). */
+  used?: boolean;
 }
 
 export interface Deductions {
@@ -90,6 +92,8 @@ export interface AppState {
   taxYear: number;
   profile: PersonalProfile;
   lohnsteuer: LohnsteuerData | null;
+  /** Full set of captured/edited wage-statement lines (incl. informational). */
+  wageLines: ParsedField[] | null;
   deductions: Deductions;
   /** Follow-up document checklist the user can tick off. */
   followUpDocs: Record<string, boolean>;

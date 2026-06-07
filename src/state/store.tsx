@@ -3,12 +3,14 @@
 // simple and fully client-side.
 
 import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react';
-import type { AppState, Deductions, LohnsteuerData, PersonalProfile } from '../types';
+import type { AppState, Deductions, LohnsteuerData, ParsedField, PersonalProfile } from '../types';
 import { clearState, defaultState, loadState, saveState } from '../lib/storage';
+import { fieldsToData } from '../lib/parsing/lohnsteuer';
 
 type Action =
   | { type: 'setProfile'; patch: Partial<PersonalProfile> }
   | { type: 'setLohnsteuer'; data: LohnsteuerData | null }
+  | { type: 'setWageLines'; fields: ParsedField[] | null }
   | { type: 'setDeductions'; patch: Partial<Deductions> }
   | { type: 'toggleDoc'; key: string }
   | { type: 'setStep'; step: string }
@@ -20,6 +22,12 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, profile: { ...state.profile, ...action.patch } };
     case 'setLohnsteuer':
       return { ...state, lohnsteuer: action.data };
+    case 'setWageLines':
+      return {
+        ...state,
+        wageLines: action.fields,
+        lohnsteuer: action.fields ? fieldsToData(action.fields) : null,
+      };
     case 'setDeductions':
       return { ...state, deductions: { ...state.deductions, ...action.patch } };
     case 'toggleDoc':
@@ -40,6 +48,7 @@ interface StoreValue {
   state: AppState;
   setProfile: (patch: Partial<PersonalProfile>) => void;
   setLohnsteuer: (data: LohnsteuerData | null) => void;
+  setWageLines: (fields: ParsedField[] | null) => void;
   setDeductions: (patch: Partial<Deductions>) => void;
   toggleDoc: (key: string) => void;
   setStep: (step: string) => void;
@@ -60,6 +69,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       state,
       setProfile: (patch) => dispatch({ type: 'setProfile', patch }),
       setLohnsteuer: (data) => dispatch({ type: 'setLohnsteuer', data }),
+      setWageLines: (fields) => dispatch({ type: 'setWageLines', fields }),
       setDeductions: (patch) => dispatch({ type: 'setDeductions', patch }),
       toggleDoc: (key) => dispatch({ type: 'toggleDoc', key }),
       setStep: (step) => dispatch({ type: 'setStep', step }),

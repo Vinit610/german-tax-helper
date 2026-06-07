@@ -3,6 +3,7 @@
 
 import type { AppState } from '../types';
 import { TAX_YEAR } from '../types';
+import { dataToFields } from './parsing/lohnsteuer';
 
 const STORAGE_KEY = 'german-tax-helper:v1';
 const SCHEMA_VERSION = 1;
@@ -19,6 +20,7 @@ export function defaultState(): AppState {
       children: 0,
     },
     lohnsteuer: null,
+    wageLines: null,
     deductions: {
       commuteOneWayKm: 0,
       commuteDays: 0,
@@ -41,12 +43,18 @@ export function loadState(): AppState {
     if (parsed.schemaVersion !== SCHEMA_VERSION) return defaultState();
     // Merge over defaults so newly added fields are always present.
     const base = defaultState();
-    return {
+    const merged: AppState = {
       ...base,
       ...parsed,
       profile: { ...base.profile, ...parsed.profile },
       deductions: { ...base.deductions, ...parsed.deductions },
     };
+    // Migration: older sessions stored only the typed wage data — rebuild the
+    // editable line list from it so the review screen shows the values again.
+    if (!merged.wageLines && merged.lohnsteuer) {
+      merged.wageLines = dataToFields(merged.lohnsteuer);
+    }
+    return merged;
   } catch {
     return defaultState();
   }
