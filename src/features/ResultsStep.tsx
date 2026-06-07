@@ -4,6 +4,7 @@
 import { useMemo } from 'react';
 import { AnlageBadge } from '../components/AnlageBadge';
 import { computeEstimate } from '../lib/tax/estimate';
+import { ELSTER_LSTB } from '../lib/tax/elster';
 import { formatEur, formatPct } from '../lib/format';
 import { useStore } from '../state/store';
 
@@ -24,6 +25,8 @@ export function ResultsStep({ onBack }: { onBack: () => void }) {
     );
   }
 
+  // result is non-null only when wage data exists.
+  const l = state.lohnsteuer!;
   const isRefund = result.refund >= 0;
 
   return (
@@ -79,6 +82,51 @@ export function ResultsStep({ onBack }: { onBack: () => void }) {
         </p>
       </div>
 
+      {/* Filing it yourself on ELSTER */}
+      <div className="card space-y-3">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+          Filing this yourself on ELSTER
+        </h3>
+        <p className="text-sm text-slate-600">
+          The easiest route: in ELSTER use <strong>“Belegabruf”</strong> (vorausgefüllte
+          Steuererklärung) and your wage data fills in automatically. To type it in by hand, the table
+          below — and the green “ELSTER:” hints under each line further down — tell you exactly which
+          form and field each value goes in. Your withheld taxes go on Anlage N:
+        </p>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs text-slate-400">
+              <th className="py-1 font-medium">Value</th>
+              <th className="py-1 font-medium">From wage statement</th>
+              <th className="py-1 font-medium">Enter on ELSTER</th>
+              <th className="py-1 text-right font-medium">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              { ref: ELSTER_LSTB['3'], label: 'Gross salary', amount: l.grossSalary },
+              { ref: ELSTER_LSTB['4'], label: 'Income tax withheld', amount: l.incomeTaxWithheld },
+              { ref: ELSTER_LSTB['5'], label: 'Solidarity surcharge', amount: l.soliWithheld },
+              { ref: ELSTER_LSTB['6'], label: 'Church tax withheld', amount: l.churchTaxWithheld },
+            ].map((row, i) => (
+              <tr key={i} className="border-t border-slate-100">
+                <td className="py-1.5 text-slate-700">{row.label}</td>
+                <td className="py-1.5 text-xs text-slate-400">Nr. {row.ref.caption.match(/Nr\. ([\w]+)/)?.[1] ?? ''}</td>
+                <td className="py-1.5">
+                  <span className="font-medium text-brand-700">{row.ref.form}</span>, {row.ref.line}
+                </td>
+                <td className="py-1.5 text-right tabular-nums">{formatEur(row.amount)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="text-xs text-slate-400">
+          Line numbers (Zeilen) refer to the 2024/2025 forms and can shift slightly year to year — the
+          German caption and the “lt. Nr. … der Lohnsteuerbescheinigung” reference are the reliable
+          anchors inside ELSTER.
+        </p>
+      </div>
+
       {/* Per-Anlage breakdown */}
       {result.sections.map((section) => (
         <div key={section.id} className="card space-y-3">
@@ -95,6 +143,12 @@ export function ResultsStep({ onBack }: { onBack: () => void }) {
                     <span className="text-slate-700">{item.label}</span>
                     <span className="ml-2 text-xs text-slate-400">{item.germanLabel}</span>
                     {item.note && <div className="text-xs text-slate-400">{item.note}</div>}
+                    {item.elster && (
+                      <div className="mt-0.5 text-xs text-brand-600">
+                        ELSTER: <span className="font-medium">{item.elster.form}</span>, {item.elster.line} —{' '}
+                        {item.elster.caption}
+                      </div>
+                    )}
                   </td>
                   <td className="py-1.5 text-right font-medium tabular-nums">{formatEur(item.amount)}</td>
                 </tr>

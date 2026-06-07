@@ -5,14 +5,31 @@
 
 import type { LohnsteuerData, ParsedField } from '../../types';
 
-/** Parse a German-formatted number ("45.000,00" → 45000). */
+/**
+ * Parse a German-formatted number into a JS number. Tolerant of the messy text
+ * pdf.js / OCR produces: spaced thousands ("45 000,00"), missing decimals
+ * ("45.000"), or plain integers ("45000").
+ *
+ *   "45.000,00" → 45000   "45 000,00" → 45000   "45.000" → 45000
+ *   "1.234.567,89" → 1234567.89   "0,00" → 0   "12,5" → 12.5
+ */
 export function parseGermanNumber(raw: string): number | null {
-  const cleaned = raw
-    .replace(/[^0-9.,-]/g, '')
-    .replace(/\.(?=\d{3}(\D|$))/g, '') // strip thousands separators
-    .replace(',', '.');
-  const n = Number.parseFloat(cleaned);
-  return Number.isFinite(n) ? n : null;
+  let s = raw.replace(/[^\d.,\s-]/g, '').trim();
+  if (!s) return null;
+  const negative = s.startsWith('-');
+  s = s.replace(/\s+/g, '').replace(/-/g, '');
+
+  if (s.includes(',')) {
+    // Comma is the decimal separator; dots are thousands separators.
+    s = s.replace(/\./g, '').replace(',', '.');
+  } else {
+    // No comma: dots can only be thousands separators in this context.
+    s = s.replace(/\./g, '');
+  }
+
+  const n = Number.parseFloat(s);
+  if (!Number.isFinite(n)) return null;
+  return negative ? -n : n;
 }
 
 interface FieldRule {
@@ -37,23 +54,50 @@ const RULES: FieldRule[] = [
   { key: 'unemploymentInsuranceEmployee', line: '27', label: 'Unemployment insurance (employee)', germanLabel: 'Arbeitslosenversicherung', keywords: ['arbeitslosenversicherung'] },
 ];
 
-const NUMBER_RE = /-?\d{1,3}(?:\.\d{3})*(?:,\d{2})|-?\d+,\d{2}/g;
+// Matches money amounts in the many shapes pdf.js / OCR emit. The first
+// alternative covers grouped thousands with optional spaces ("45.000,00",
+// "45 000", "1.234.567,89"); the second covers plain numbers with a decimal
+// comma ("450,00"); the third covers bare integers of 3+ digits ("45000"),
+// which keeps us from grabbing a stray line number like "3" or "22".
+const AMOUNT_RE = /\d{1,3}(?:[.\s]\d{3})+(?:,\d{1,2})?|\d+,\d{1,2}|\d{3,}/g;
+
+interface Candidate {
+  value: number;
+  /** Real currency amounts carry a decimal comma — preferred over bare ints. */
+  hasDecimal: boolean;
+  /** Distance from the keyword; nearer is better. */
+  offset: number;
+}
 
 /**
- * Find the first plausible amount near a keyword occurrence. We look at a window
- * of text starting at the keyword and take the first German-formatted number.
+ * Collect amount candidates in a window after a keyword and pick the best one.
+ * We prefer the nearest value that is formatted like real money (has a decimal
+ * comma); otherwise we fall back to the nearest plausible integer. Values that
+ * look like the tax year (2019–2030) are skipped to avoid matching dates.
  */
 function findAmountNearKeyword(text: string, keywords: string[]): number | null {
   const lower = text.toLowerCase();
   for (const kw of keywords) {
     const idx = lower.indexOf(kw);
     if (idx === -1) continue;
-    const window = text.slice(idx, idx + 120);
-    const matches = window.match(NUMBER_RE);
-    if (matches && matches.length > 0) {
-      const value = parseGermanNumber(matches[0]);
-      if (value !== null) return value;
+    const window = text.slice(idx + kw.length, idx + kw.length + 140);
+
+    const candidates: Candidate[] = [];
+    for (const m of window.matchAll(AMOUNT_RE)) {
+      const raw = m[0];
+      const value = parseGermanNumber(raw);
+      if (value === null) continue;
+      const hasDecimal = raw.includes(',');
+      // Skip bare year-like integers (no decimal, looks like a date part).
+      if (!hasDecimal && value >= 2019 && value <= 2030 && Number.isInteger(value)) continue;
+      candidates.push({ value, hasDecimal, offset: m.index ?? 0 });
     }
+    if (candidates.length === 0) continue;
+
+    const withDecimal = candidates.filter((c) => c.hasDecimal);
+    const pool = withDecimal.length > 0 ? withDecimal : candidates;
+    pool.sort((a, b) => a.offset - b.offset);
+    return pool[0].value;
   }
   return null;
 }

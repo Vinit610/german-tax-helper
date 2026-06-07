@@ -5,6 +5,7 @@
 // disclaimers in the UI.
 
 import type { Deductions, LohnsteuerData } from '../../types';
+import { ELSTER_DEDUCTION, ELSTER_LSTB, type ElsterRef } from './elster';
 
 // --- Official 2025 lump sums & caps -----------------------------------------
 
@@ -30,6 +31,8 @@ export interface LineItem {
   germanLabel: string;
   amount: number;
   note?: string;
+  /** Where to enter this value when filing on ELSTER. */
+  elster?: ElsterRef;
 }
 
 export interface WerbungskostenResult {
@@ -64,15 +67,17 @@ export function computeWerbungskosten(d: Deductions): WerbungskostenResult {
       germanLabel: 'Entfernungspauschale',
       amount: commute,
       note: `${d.commuteOneWayKm} km one-way × ${d.commuteDays} days`,
+      elster: ELSTER_DEDUCTION.commute,
     },
     {
       label: 'Home-office flat rate',
       germanLabel: 'Homeoffice-Pauschale',
       amount: homeOffice,
       note: `${Math.min(d.homeOfficeDays, HOME_OFFICE_MAX_DAYS)} days × €6`,
+      elster: ELSTER_DEDUCTION.homeOffice,
     },
-    { label: 'Work equipment', germanLabel: 'Arbeitsmittel', amount: d.workEquipment },
-    { label: 'Other work costs', germanLabel: 'Sonstige Werbungskosten', amount: d.otherWorkCosts },
+    { label: 'Work equipment', germanLabel: 'Arbeitsmittel', amount: d.workEquipment, elster: ELSTER_DEDUCTION.equipment },
+    { label: 'Other work costs', germanLabel: 'Sonstige Werbungskosten', amount: d.otherWorkCosts, elster: ELSTER_DEDUCTION.otherWork },
   ];
   const actual = items.reduce((s, i) => s + i.amount, 0);
   const applied = Math.max(actual, ARBEITNEHMER_PAUSCHBETRAG);
@@ -118,16 +123,19 @@ export function computeVorsorge(l: LohnsteuerData, d: Deductions, joint: boolean
       label: 'Statutory pension (deductible share)',
       germanLabel: 'Altersvorsorge (Rentenversicherung)',
       amount: pension,
+      elster: ELSTER_LSTB['23a'],
     },
     {
       label: 'Health + long-term care (basic)',
       germanLabel: 'Basis-Kranken- und Pflegeversicherung',
       amount: basisHealthCare,
+      elster: ELSTER_LSTB['25'],
     },
     {
       label: 'Other insurance (within cap)',
       germanLabel: 'Sonstige Vorsorgeaufwendungen',
       amount: otherProvision,
+      elster: ELSTER_DEDUCTION.otherInsurance,
     },
   ];
   const total = pension + basisHealthCare + otherProvision;

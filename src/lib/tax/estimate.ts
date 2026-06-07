@@ -14,6 +14,7 @@ import {
   type WerbungskostenResult,
 } from './deductions';
 import { einkommensteuer, kirchensteuer, marginalRate, soli } from './incomeTax';
+import { ELSTER_DEDUCTION, ELSTER_LSTB } from './elster';
 
 export interface AnlageSection {
   id: string;
@@ -93,6 +94,7 @@ export function computeEstimate(state: AppState): EstimateResult | null {
           label: 'Gross salary',
           germanLabel: 'Bruttoarbeitslohn (Zeile 3)',
           amount: l.grossSalary,
+          elster: ELSTER_LSTB['3'],
         },
         ...werbungskosten.items,
         {
@@ -127,7 +129,7 @@ export function computeEstimate(state: AppState): EstimateResult | null {
       title: 'Donations & other special expenses',
       description: 'Charitable donations and the standard special-expenses lump sum.',
       items: [
-        { label: 'Donations', germanLabel: 'Spenden', amount: sonderausgaben.donations },
+        { label: 'Donations', germanLabel: 'Spenden', amount: sonderausgaben.donations, elster: ELSTER_DEDUCTION.donations },
         {
           label: 'Applied (incl. lump sum)',
           germanLabel: 'Sonderausgaben-Pauschbetrag',
