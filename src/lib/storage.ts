@@ -6,7 +6,10 @@ import { TAX_YEAR } from '../types';
 import { dataToFields } from './parsing/lohnsteuer';
 
 const STORAGE_KEY = 'german-tax-helper:v1';
-const SCHEMA_VERSION = 1;
+// Bumped whenever the persisted shape changes (wage-line set, deduction fields,
+// data model). A mismatch resets to defaults so stale state can't hide newly
+// parsed lines or crash the UI.
+const SCHEMA_VERSION = 3;
 
 export function defaultState(): AppState {
   return {

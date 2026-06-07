@@ -86,6 +86,50 @@ export function ResultsStep({ onBack }: { onBack: () => void }) {
         </div>
       )}
 
+      {/* Everything read from the wage statement — full transparency */}
+      {state.wageLines && state.wageLines.some((f) => f.value) && (
+        <div className="card space-y-3">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+            Read from your wage statement (Lohnsteuerbescheinigung)
+          </h3>
+          <p className="text-sm text-slate-500">
+            Every numbered line the tool detected. “Used” values feed the estimate; the rest are
+            captured for your records and for filing.
+          </p>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-slate-400">
+                <th className="py-1 font-medium">Nr.</th>
+                <th className="py-1 font-medium">Line</th>
+                <th className="py-1 text-right font-medium">Amount</th>
+                <th className="py-1 pl-3 font-medium">In estimate?</th>
+              </tr>
+            </thead>
+            <tbody>
+              {state.wageLines
+                .filter((f) => f.value)
+                .map((f) => (
+                  <tr key={f.line} className="border-t border-slate-100">
+                    <td className="py-1.5 font-mono text-xs text-slate-500">{f.line}</td>
+                    <td className="py-1.5">
+                      {f.label}
+                      <span className="ml-1 text-xs text-slate-400">{f.germanLabel}</span>
+                    </td>
+                    <td className="py-1.5 text-right tabular-nums">{formatEur(f.value)}</td>
+                    <td className="py-1.5 pl-3">
+                      {f.used ? (
+                        <span className="text-xs font-medium text-emerald-600">used</span>
+                      ) : (
+                        <span className="text-xs text-slate-400">reference</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {/* How we got there */}
       <div className="card space-y-3">
         <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">How this is calculated</h3>
