@@ -140,11 +140,11 @@ interface FieldRule {
 const RULES: FieldRule[] = [
   // --- Wage (Anlage N) ---
   { line: '3', used: true, label: 'Gross salary (regular)', germanLabel: 'Bruttoarbeitslohn (ohne Nr. 9/10)', captions: ['bruttoarbeitslohn'] },
-  { line: '6', used: false, label: 'Tax-free wage under a treaty', germanLabel: 'Steuerfreier Arbeitslohn nach DBA/ATE', captions: ['steuerfreier arbeitslohn nach', 'doppelbesteuerungsabkommen', 'steuerfreier'] },
+  { line: '6', used: true, label: 'Tax-free wage under a treaty', germanLabel: 'Steuerfreier Arbeitslohn nach DBA/ATE', captions: ['steuerfreier arbeitslohn nach', 'doppelbesteuerungsabkommen', 'steuerfreier'] },
   // Caption restricted to "Versorgungsbezüge" so it can't match inside Nr. 10's
   // wording ("…und ermäßigt besteuerte Entschädigungen"), which double-counted.
-  { line: '9', used: false, label: 'Reduced-rate pension benefits', germanLabel: 'Ermäßigt besteuerte Versorgungsbezüge', captions: ['ermäßigt besteuerte versorgungsbezüge', 'ermassigt besteuerte versorgungsbezüge'] },
-  { line: '10', used: false, label: 'Reduced-rate multi-year pay', germanLabel: 'Ermäßigt besteuerter Arbeitslohn für mehrere Kalenderjahre', captions: ['ermäßigt besteuerter arbeitslohn für mehrere', 'ermassigt besteuerter arbeitslohn für mehrere'] },
+  { line: '9', used: true, label: 'Reduced-rate pension benefits', germanLabel: 'Ermäßigt besteuerte Versorgungsbezüge', captions: ['ermäßigt besteuerte versorgungsbezüge', 'ermassigt besteuerte versorgungsbezüge'] },
+  { line: '10', used: true, label: 'Reduced-rate multi-year pay', germanLabel: 'Ermäßigt besteuerter Arbeitslohn für mehrere Kalenderjahre', captions: ['ermäßigt besteuerter arbeitslohn für mehrere', 'ermassigt besteuerter arbeitslohn für mehrere'] },
   { line: '19', used: false, label: 'Multi-year pay taxed normally', germanLabel: 'Steuerpflichtige Entschädigungen/Arbeitslohn mehrere Jahre (in Nr. 3)', captions: ['steuerpflichtige entschädigungen'] },
 
   // --- Taxes on the regular wage (essential) ---
@@ -160,13 +160,15 @@ const RULES: FieldRule[] = [
   { line: '14', used: true, label: 'Church tax — spouse (on Nr. 9/10)', germanLabel: 'Kirchensteuer des Ehegatten von 9. und 10.', captions: ['kirchensteuer des ehegatten von 9'] },
 
   // --- Tax-free allowances ---
-  { line: '15', used: false, label: 'Wage-replacement benefits', germanLabel: 'Kurzarbeitergeld u. a. Lohnersatzleistungen', captions: ['kurzarbeitergeld', 'lohnersatzleistungen'] },
+  { line: '15', used: true, label: 'Wage-replacement benefits', germanLabel: 'Kurzarbeitergeld u. a. Lohnersatzleistungen', captions: ['kurzarbeitergeld', 'lohnersatzleistungen'] },
   { line: '17', used: true, label: 'Employer commute benefit (tax-free)', germanLabel: 'Steuerfreie AG-Leistungen auf die Entfernungspauschale', captions: ['entfernungspauschale anzurechnen sind', 'die auf die entfernungspauschale anzurechnen'] },
+  { line: '18', used: true, label: 'Flat-taxed commute benefit', germanLabel: 'Pauschal besteuerte Arbeitgeberleistungen für Fahrten Wohnung–Arbeit', captions: ['pauschal besteuerte arbeitgeberleistungen', 'pauschal besteuert'] },
 
   // --- Social insurance (Anlage Vorsorgeaufwand) (essential) ---
   { line: '22a', used: true, label: 'Pension — employer share', germanLabel: 'Arbeitgeberanteil gesetzliche Rentenversicherung', captions: ['zur gesetzlichen rentenversicherung'], prefix: 'arbeitgeber' },
-  { line: '22b', used: false, label: 'Professional pension — employer', germanLabel: 'Arbeitgeberanteil berufsständische Versorgung', captions: ['berufsständische', 'berufsständischen versorgung'], prefix: 'arbeitgeber' },
+  { line: '22b', used: true, label: 'Professional pension — employer', germanLabel: 'Arbeitgeberanteil berufsständische Versorgung', captions: ['berufsständische', 'berufsständischen versorgung'], prefix: 'arbeitgeber' },
   { line: '23a', used: true, label: 'Pension — employee share', germanLabel: 'Arbeitnehmeranteil gesetzliche Rentenversicherung', captions: ['zur gesetzlichen rentenversicherung'], prefix: 'arbeitnehmer' },
+  { line: '23b', used: true, label: 'Professional pension — employee', germanLabel: 'Arbeitnehmeranteil berufsständische Versorgung', captions: ['berufsständische', 'berufsständischen versorgung'], prefix: 'arbeitnehmer' },
   { line: '25', used: true, label: 'Health insurance (employee)', germanLabel: 'Arbeitnehmerbeiträge gesetzliche Krankenversicherung', captions: ['arbeitnehmerbeiträge zur gesetzlichen krankenversicherung', 'arbeitnehmerbeiträge zur krankenversicherung'] },
   { line: '26', used: true, label: 'Long-term care insurance (employee)', germanLabel: 'Arbeitnehmerbeiträge soziale Pflegeversicherung', captions: ['arbeitnehmerbeiträge zur sozialen pflegeversicherung', 'soziale pflegeversicherung'] },
   { line: '27', used: true, label: 'Unemployment insurance (employee)', germanLabel: 'Arbeitnehmerbeiträge Arbeitslosenversicherung', captions: ['arbeitnehmerbeiträge zur arbeitslosenversicherung', 'arbeitslosenversicherung'] },
@@ -274,7 +276,6 @@ export function parseLohnsteuer(text: string, source: 'pdf' | 'ocr'): ParseResul
 // German labels for lines we capture generically but don't map into the estimate.
 const KNOWN_EXTRA_LABELS: Record<string, string> = {
   '16': 'Steuerfreie Arbeitgeberleistungen (Auswärtstätigkeit/Sammelbeförderung)',
-  '18': 'Pauschal besteuerte Arbeitgeberleistungen (Fahrten Wohnung–Arbeit)',
   '20': 'Steuerfreie Verpflegungszuschüsse bei Auswärtstätigkeit',
   '21': 'Steuerfreie Arbeitgeberleistungen bei doppelter Haushaltsführung',
   '24': 'Steuerfreie Arbeitgeberzuschüsse Kranken-/Pflegeversicherung',
@@ -308,9 +309,9 @@ export function fieldsToData(fields: ParsedField[]): LohnsteuerData {
     specialIncome: g('9') + g('10'),
     dbaIncome: g('6'),
     lohnReplacement: g('15'),
-    agCommuteUntaxed: g('17'),
-    pensionEmployer: g('22a'),
-    pensionEmployee: g('23a'),
+    agCommuteUntaxed: g('17') + g('18'),
+    pensionEmployer: g('22a') + g('22b'),
+    pensionEmployee: g('23a') + g('23b'),
     healthInsuranceEmployee: g('25'),
     careInsuranceEmployee: g('26'),
     unemploymentInsuranceEmployee: g('27'),

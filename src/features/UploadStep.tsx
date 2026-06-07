@@ -179,9 +179,10 @@ export function UploadStep({ onNext, onBack }: { onNext: () => void; onBack: () 
               {showOther && (
                 <>
                   <p className="mt-2 text-xs text-slate-400">
-                    These aren’t used in the simplified estimate yet (some belong to later phases, e.g.
-                    treaty-exempt income or special tax rates), but they’re captured so you can verify
-                    them and use them when filing.
+                    These are informational or already accounted for elsewhere — e.g. amounts already
+                    contained in your gross wage (Nr. 3), or tax-free employer benefits that aren’t
+                    separately deductible. They’re captured so you can verify them and transfer them
+                    when filing.
                   </p>
                   <div className="mt-3 grid gap-4 sm:grid-cols-2">
                     {fields.filter((f) => !f.used).map((f) => (
