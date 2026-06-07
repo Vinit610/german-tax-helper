@@ -78,19 +78,46 @@ function bestAmount(text: string): number | null {
 }
 
 /**
- * Find a caption and return the amount that follows it. `prefix`, if given, must
- * appear within ~50 chars before the caption (used to tell the employer vs.
- * employee pension lines apart, since they share "zur gesetzlichen Rentenvers.").
+ * Find a caption and return the amount that follows it — matching against a
+ * normalised view of the text (letters/digits only) so that line wraps,
+ * hyphenation ("Arbeitnehmer-\nbeiträge") and extra spaces don't break it.
+ * `prefix`, if given, must appear shortly before the caption (employer vs.
+ * employee pension lines, which share "zur gesetzlichen Rentenversicherung").
  */
-function findByCaption(text: string, lower: string, captions: string[], prefix?: string): number | null {
+interface Normalised {
+  norm: string;
+  /** map[i] = index in the original text of normalised char i. */
+  map: number[];
+}
+
+function normalise(text: string): Normalised {
+  const map: number[] = [];
+  let norm = '';
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i].toLowerCase();
+    if (/[a-z0-9äöüß]/.test(c)) {
+      norm += c;
+      map.push(i);
+    }
+  }
+  return { norm, map };
+}
+
+const stripNonAlnum = (s: string) => s.toLowerCase().replace(/[^a-z0-9äöüß]/g, '');
+
+function findByCaption(text: string, n: Normalised, captions: string[], prefix?: string): number | null {
+  const nprefix = prefix ? stripNonAlnum(prefix) : '';
   for (const core of captions) {
+    const ncore = stripNonAlnum(core);
+    if (!ncore) continue;
     let from = 0;
     for (;;) {
-      const idx = lower.indexOf(core, from);
+      const idx = n.norm.indexOf(ncore, from);
       if (idx === -1) break;
-      from = idx + core.length;
-      if (prefix && !lower.slice(Math.max(0, idx - 50), idx).includes(prefix)) continue;
-      const v = bestAmount(text.slice(idx + core.length, idx + core.length + 90));
+      from = idx + ncore.length;
+      if (nprefix && !n.norm.slice(Math.max(0, idx - 40), idx).includes(nprefix)) continue;
+      const origStart = n.map[idx + ncore.length - 1] + 1;
+      const v = bestAmount(text.slice(origStart, origStart + 120));
       if (v !== null) return v;
     }
   }
@@ -143,7 +170,7 @@ const RULES: FieldRule[] = [
   { line: '25', used: true, label: 'Health insurance (employee)', germanLabel: 'Arbeitnehmerbeiträge gesetzliche Krankenversicherung', captions: ['arbeitnehmerbeiträge zur gesetzlichen krankenversicherung', 'arbeitnehmerbeiträge zur krankenversicherung'] },
   { line: '26', used: true, label: 'Long-term care insurance (employee)', germanLabel: 'Arbeitnehmerbeiträge soziale Pflegeversicherung', captions: ['arbeitnehmerbeiträge zur sozialen pflegeversicherung', 'soziale pflegeversicherung'] },
   { line: '27', used: true, label: 'Unemployment insurance (employee)', germanLabel: 'Arbeitnehmerbeiträge Arbeitslosenversicherung', captions: ['arbeitnehmerbeiträge zur arbeitslosenversicherung', 'arbeitslosenversicherung'] },
-  { line: '28', used: true, label: 'Private health/care or min. provision', germanLabel: 'Private Kranken-/Pflege-Pflichtversicherung oder Mindestvorsorgepauschale', captions: ['privaten kranken', 'mindestvorsorgepauschale'] },
+  { line: '28', used: true, label: 'Private health/care insurance or minimum provision', germanLabel: 'Beiträge zur privaten Kranken- und Pflege-Pflichtversicherung oder Mindestvorsorgepauschale', captions: ['mindestvorsorgepauschale', 'privaten kranken'] },
 ];
 
 // --- Generic line capture ----------------------------------------------------
@@ -203,14 +230,14 @@ export interface ParseResult {
 /** Apply the rules to extracted text and return both fields and a data object. */
 export function parseLohnsteuer(text: string, source: 'pdf' | 'ocr'): ParseResult {
   const baseConfidence = source === 'pdf' ? 'high' : 'medium';
-  const lower = text.toLowerCase();
+  const n = normalise(text);
   const fields: ParsedField[] = [];
   const covered = new Set<string>();
 
   let found = 0;
   for (const rule of RULES) {
     covered.add(rule.line);
-    const v = findByCaption(text, lower, rule.captions, rule.prefix);
+    const v = findByCaption(text, n, rule.captions, rule.prefix);
     const matched = v !== null;
     if (matched) found++;
     fields.push({
