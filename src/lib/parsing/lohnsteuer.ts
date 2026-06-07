@@ -85,9 +85,9 @@ const RULES: FieldRule[] = [
   { line: '22b', used: false, label: 'Professional pension (employer)', germanLabel: 'Arbeitgeberanteil berufsständische Versorgung', keywords: ['arbeitgeberanteil berufsständ', 'berufsständische versorgung'] },
   { key: 'pensionEmployee', line: '23a', used: true, label: 'Pension (employee share)', germanLabel: 'Arbeitnehmeranteil gesetzliche Rentenversicherung', keywords: ['arbeitnehmeranteil'] },
   { line: '24', used: false, label: 'Employer health/care subsidy', germanLabel: 'Steuerfreie Arbeitgeberzuschüsse Kranken-/Pflegeversicherung', keywords: ['arbeitgeberzuschuss', 'steuerfreie zuschüsse', 'zuschuss zur kranken'] },
-  { key: 'healthInsuranceEmployee', line: '25', used: true, label: 'Health insurance (employee)', germanLabel: 'Arbeitnehmerbeiträge gesetzliche Krankenversicherung', keywords: ['krankenversicherung'] },
-  { key: 'careInsuranceEmployee', line: '26', used: true, label: 'Long-term care insurance (employee)', germanLabel: 'Arbeitnehmerbeiträge soziale Pflegeversicherung', keywords: ['pflegeversicherung'] },
-  { key: 'unemploymentInsuranceEmployee', line: '27', used: true, label: 'Unemployment insurance (employee)', germanLabel: 'Arbeitnehmerbeiträge Arbeitslosenversicherung', keywords: ['arbeitslosenversicherung'] },
+  { key: 'healthInsuranceEmployee', line: '25', used: true, label: 'Health insurance (employee)', germanLabel: 'Arbeitnehmerbeiträge gesetzliche Krankenversicherung', keywords: ['arbeitnehmerbeiträge zur gesetzlichen krankenversicherung', 'arbeitnehmerbeiträge zur krankenversicherung', 'arbeitnehmeranteil zur gesetzlichen krankenversicherung'] },
+  { key: 'careInsuranceEmployee', line: '26', used: true, label: 'Long-term care insurance (employee)', germanLabel: 'Arbeitnehmerbeiträge soziale Pflegeversicherung', keywords: ['arbeitnehmerbeiträge zur sozialen pflegeversicherung', 'arbeitnehmerbeiträge zur pflegeversicherung', 'soziale pflegeversicherung'] },
+  { key: 'unemploymentInsuranceEmployee', line: '27', used: true, label: 'Unemployment insurance (employee)', germanLabel: 'Arbeitnehmerbeiträge Arbeitslosenversicherung', keywords: ['arbeitnehmerbeiträge zur arbeitslosenversicherung', 'arbeitslosenversicherung'] },
   { line: '28', used: false, label: 'Private health/care insurance', germanLabel: 'Beiträge zur privaten Kranken-/Pflegeversicherung', keywords: ['private kranken', 'basiskranken', 'private pflege'] },
 ];
 
@@ -113,34 +113,86 @@ interface Candidate {
 }
 
 /**
- * Collect amount candidates in a window after a keyword and pick the best one:
- * the nearest value formatted like real money (a decimal separator), else the
- * nearest plausible integer. Year-like bare integers are skipped (dates).
+ * Pick the best money amount in a chunk of text: prefer the nearest value that
+ * is formatted like real currency (a decimal separator); skip year-like ints.
  */
+function bestAmount(text: string): number | null {
+  const candidates: Candidate[] = [];
+  for (const m of text.matchAll(AMOUNT_RE)) {
+    const raw = m[0];
+    const value = parseAmount(raw);
+    if (value === null) continue;
+    const hasDecimal = looksLikeDecimal(raw);
+    if (!hasDecimal && value >= 2019 && value <= 2030 && Number.isInteger(value)) continue;
+    candidates.push({ value, hasDecimal, offset: m.index ?? 0 });
+  }
+  if (candidates.length === 0) return null;
+  const withDecimal = candidates.filter((c) => c.hasDecimal);
+  const pool = withDecimal.length > 0 ? withDecimal : candidates;
+  pool.sort((a, b) => a.offset - b.offset);
+  return pool[0].value;
+}
+
+/** Keyword-anchored fallback: best amount in a window after a keyword. */
 function findAmountNearKeyword(text: string, keywords: string[]): number | null {
   const lower = text.toLowerCase();
   for (const kw of keywords) {
     const idx = lower.indexOf(kw);
     if (idx === -1) continue;
-    const window = text.slice(idx + kw.length, idx + kw.length + 140);
-
-    const candidates: Candidate[] = [];
-    for (const m of window.matchAll(AMOUNT_RE)) {
-      const raw = m[0];
-      const value = parseAmount(raw);
-      if (value === null) continue;
-      const hasDecimal = looksLikeDecimal(raw);
-      if (!hasDecimal && value >= 2019 && value <= 2030 && Number.isInteger(value)) continue;
-      candidates.push({ value, hasDecimal, offset: m.index ?? 0 });
-    }
-    if (candidates.length === 0) continue;
-
-    const withDecimal = candidates.filter((c) => c.hasDecimal);
-    const pool = withDecimal.length > 0 ? withDecimal : candidates;
-    pool.sort((a, b) => a.offset - b.offset);
-    return pool[0].value;
+    const v = bestAmount(text.slice(idx + kw.length, idx + kw.length + 140));
+    if (v !== null) return v;
   }
   return null;
+}
+
+// --- Line-number segmentation ------------------------------------------------
+// The elektronische Lohnsteuerbescheinigung prints a number before each entry
+// ("3.", "22. a)", "23a", "25."). Anchoring on those numbers is far more robust
+// than fuzzy German keywords: it stops line 25 (your health contribution) from
+// being confused with line 24 (the employer subsidy), and 22a from 22b. We split
+// the text at each line token and read the amount inside that one segment.
+
+interface LineToken {
+  id: string;
+  pos: number;
+  contentStart: number;
+}
+
+// A numbered token "12." / "22a)" / "22 a)", or a lone sub-letter "a)".
+const TOKEN_RE = /(?<![\d.,])(\d{1,2})\s*([a-c])?\s*[.)](?!\d)|(?<=\s)([a-c])\)/gi;
+
+function detectTokens(text: string): LineToken[] {
+  const tokens: LineToken[] = [];
+  let master = '';
+  for (const m of text.matchAll(TOKEN_RE)) {
+    let id: string;
+    if (m[1] !== undefined) {
+      master = m[1];
+      id = m[2] ? master + m[2].toLowerCase() : master;
+    } else if (m[3] !== undefined && master) {
+      id = master + m[3].toLowerCase();
+    } else {
+      continue;
+    }
+    const base = Number.parseInt(id, 10);
+    if (!(base >= 3 && base <= 30)) continue;
+    const pos = m.index ?? 0;
+    tokens.push({ id, pos, contentStart: pos + m[0].length });
+  }
+  return tokens;
+}
+
+/** Map each detected form line to the amount printed on it. */
+function segmentAmounts(text: string): Map<string, number> {
+  const tokens = detectTokens(text);
+  const map = new Map<string, number>();
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    const end = i + 1 < tokens.length ? tokens[i + 1].pos : Math.min(text.length, t.contentStart + 160);
+    const amount = bestAmount(text.slice(t.contentStart, end));
+    if (amount !== null && !map.has(t.id)) map.set(t.id, amount);
+  }
+  return map;
 }
 
 export interface ParseResult {
@@ -153,20 +205,54 @@ export interface ParseResult {
 /** Apply the rules to extracted text and return both fields and a data object. */
 export function parseLohnsteuer(text: string, source: 'pdf' | 'ocr'): ParseResult {
   const baseConfidence = source === 'pdf' ? 'high' : 'medium';
+  const seg = segmentAmounts(text);
   const fields: ParsedField[] = [];
+  const covered = new Set<string>();
 
   let found = 0;
   for (const rule of RULES) {
-    const value = findAmountNearKeyword(text, rule.keywords);
-    const matched = value !== null;
-    if (matched) found++;
+    covered.add(rule.line);
+    // Prefer the line-number anchor; fall back to keyword matching.
+    let value = seg.get(rule.line);
+    let confidence: ParsedField['confidence'];
+    if (value !== undefined) {
+      confidence = baseConfidence;
+      found++;
+    } else {
+      const kw = findAmountNearKeyword(text, rule.keywords);
+      if (kw !== null) {
+        value = kw;
+        confidence = source === 'pdf' ? 'medium' : 'low';
+        found++;
+      } else {
+        value = 0;
+        confidence = 'low';
+      }
+    }
     fields.push({
       line: rule.line,
       label: rule.label,
       germanLabel: rule.germanLabel,
-      value: value ?? 0,
-      confidence: matched ? baseConfidence : 'low',
+      value,
+      confidence,
       used: rule.used,
+    });
+  }
+
+  // Capture any other numbered lines present on the statement (e.g. 10–14) so
+  // nothing is silently dropped — they show under "Other lines" for review.
+  const extras = [...seg.keys()]
+    .filter((id) => !covered.has(id))
+    .sort((a, b) => Number.parseInt(a, 10) - Number.parseInt(b, 10) || a.localeCompare(b));
+  for (const id of extras) {
+    found++;
+    fields.push({
+      line: id,
+      label: `Line ${id}`,
+      germanLabel: 'Vom Beleg erfasst',
+      value: seg.get(id) ?? 0,
+      confidence: baseConfidence,
+      used: false,
     });
   }
 

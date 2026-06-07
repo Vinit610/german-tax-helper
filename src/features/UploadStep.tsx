@@ -28,6 +28,9 @@ export function UploadStep({ onNext, onBack }: { onNext: () => void; onBack: () 
   const [source, setSource] = useState<'pdf' | 'ocr' | 'manual'>(state.wageLines ? 'pdf' : 'manual');
   const [errorMsg, setErrorMsg] = useState('');
   const [showOther, setShowOther] = useState(false);
+  const [rawText, setRawText] = useState('');
+  const [showRaw, setShowRaw] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   async function handleFile(file: File) {
     setErrorMsg('');
@@ -46,6 +49,7 @@ export function UploadStep({ onNext, onBack }: { onNext: () => void; onBack: () 
         src = 'ocr';
       }
 
+      setRawText(text);
       const result = parseLohnsteuer(text, src);
       setFields(result.fields);
       setSource(result.empty ? 'manual' : src);
@@ -190,6 +194,48 @@ export function UploadStep({ onNext, onBack }: { onNext: () => void; onBack: () 
           )}
 
           <FollowUpChecklist checked={state.followUpDocs} onToggle={toggleDoc} />
+
+          {rawText && (
+            <div className="rounded-xl border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setShowRaw((v) => !v)}
+                className="flex w-full items-center justify-between px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                <span>
+                  Show extracted text
+                  <span className="ml-1 font-normal text-slate-400">· debug — what the parser read</span>
+                </span>
+                <span className="text-slate-400">{showRaw ? '▲' : '▼'}</span>
+              </button>
+              {showRaw && (
+                <div className="space-y-2 border-t border-slate-100 p-3">
+                  <p className="text-xs text-slate-400">
+                    If a value parsed wrong, copy this text and share it so the parser can be tuned to
+                    your exact statement. It stays on your device — copying is up to you.
+                  </p>
+                  <button
+                    type="button"
+                    className="btn-ghost px-3 py-1 text-xs"
+                    onClick={() => {
+                      navigator.clipboard?.writeText(rawText).then(
+                        () => {
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 1500);
+                        },
+                        () => setCopied(false),
+                      );
+                    }}
+                  >
+                    {copied ? 'Copied ✓' : 'Copy text'}
+                  </button>
+                  <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded bg-slate-900/95 p-3 text-xs text-slate-100">
+                    {rawText}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
