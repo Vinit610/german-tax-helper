@@ -211,6 +211,85 @@ export function ResultsStep({ onBack }: { onBack: () => void }) {
         </div>
       )}
 
+      {/* Anlage KAP — capital income */}
+      {result.capital && (
+        <div className="card space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-base font-semibold">Capital income</h3>
+            <AnlageBadge name="Anlage KAP" />
+          </div>
+          <p className="text-sm text-slate-500">
+            Taxed at the flat 25% Abgeltungsteuer after the Sparer-Pauschbetrag, with foreign
+            withholding tax credited.
+          </p>
+          <table className="w-full text-sm">
+            <tbody>
+              <tr className="border-b border-slate-100">
+                <td className="py-1.5">Investment income <span className="text-xs text-slate-400">Kapitalerträge</span></td>
+                <td className="py-1.5 text-right tabular-nums">{formatEur(state.capitalForeign.investmentIncome)}</td>
+              </tr>
+              <tr className="border-b border-slate-100">
+                <td className="py-1.5">Saver’s allowance <span className="text-xs text-slate-400">Sparer-Pauschbetrag</span></td>
+                <td className="py-1.5 text-right tabular-nums">−{formatEur(result.capital.pauschbetrag)}</td>
+              </tr>
+              <tr className="border-b border-slate-100">
+                <td className="py-1.5">Abgeltungsteuer (25%)</td>
+                <td className="py-1.5 text-right tabular-nums">{formatEur(result.capital.abgeltungsteuer)}</td>
+              </tr>
+              {result.capital.foreignCredit > 0 && (
+                <tr className="border-b border-slate-100">
+                  <td className="py-1.5">Foreign withholding tax credited <span className="text-xs text-slate-400">Anlage KAP, Zeile 41</span></td>
+                  <td className="py-1.5 text-right tabular-nums">−{formatEur(result.capital.foreignCredit)}</td>
+                </tr>
+              )}
+            </tbody>
+            <tfoot>
+              <tr className="border-t border-slate-200">
+                <td className="pt-2 font-semibold">Capital tax{result.capital.soli > 0 ? ' + Soli' : ''}{result.capital.churchTax > 0 ? ' + church' : ''}</td>
+                <td className="pt-2 text-right font-semibold tabular-nums">{formatEur(result.capital.liability)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+
+      {/* Anlage AUS — foreign / GSU income */}
+      {(result.gsuIncome > 0 || result.gsuTreatyExempt > 0 || result.foreignCredit > 0) && (
+        <div className="card space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-base font-semibold">Foreign & equity-compensation income</h3>
+            <AnlageBadge name="Anlage N" />
+            <AnlageBadge name="Anlage AUS" />
+          </div>
+          <p className="text-sm text-slate-500">
+            GSU/RSU and other foreign income, with India–Germany double-taxation relief (foreign-tax
+            credit, §34c / DBA).
+          </p>
+          <table className="w-full text-sm">
+            <tbody>
+              {result.gsuIncome > 0 && (
+                <tr className="border-b border-slate-100">
+                  <td className="py-1.5">GSU/RSU income (normal rate) <span className="text-xs text-slate-400">Anlage N</span></td>
+                  <td className="py-1.5 text-right tabular-nums">{formatEur(result.gsuIncome)}</td>
+                </tr>
+              )}
+              {result.gsuTreatyExempt > 0 && (
+                <tr className="border-b border-slate-100">
+                  <td className="py-1.5">Treaty-exempt (Progressionsvorbehalt) <span className="text-xs text-slate-400">Anlage AUS</span></td>
+                  <td className="py-1.5 text-right tabular-nums">{formatEur(result.gsuTreatyExempt)}</td>
+                </tr>
+              )}
+              {result.foreignCredit > 0 && (
+                <tr className="border-b border-slate-100">
+                  <td className="py-1.5">Foreign tax credited <span className="text-xs text-slate-400">Anlage AUS, Zeile 12</span></td>
+                  <td className="py-1.5 text-right tabular-nums">−{formatEur(result.foreignCredit)}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {/* Filing it yourself on ELSTER */}
       <div className="card space-y-3">
         <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
@@ -312,7 +391,8 @@ export function ResultsStep({ onBack }: { onBack: () => void }) {
         </table>
       </div>
 
-      {/* Reference-only forms for later phases */}
+      {/* Reference-only forms for later phases (hidden once they're in use) */}
+      {!result.capital && result.gsuIncome === 0 && result.gsuTreatyExempt === 0 && result.foreignCredit === 0 && (
       <div className="card bg-slate-50 space-y-4">
         <div>
           <h3 className="text-sm font-semibold text-slate-700">Capital & foreign income — reference only</h3>
@@ -342,10 +422,11 @@ export function ResultsStep({ onBack }: { onBack: () => void }) {
           ))}
         </div>
         <p className="text-xs text-slate-400">
-          Also coming later: part-year residency, special rates (Progressionsvorbehalt,
-          Abgeltungsteuer, Fünftelregelung), Anlage Kind, and ELSTER export. {LINE_NUMBER_DISCLAIMER}
+          Tick the box on the “Capital &amp; foreign” step to fill these in. Also coming later:
+          part-year residency, Anlage Kind, and ELSTER export. {LINE_NUMBER_DISCLAIMER}
         </p>
       </div>
+      )}
 
       <div className="flex justify-between">
         <button className="btn-ghost" onClick={onBack}>

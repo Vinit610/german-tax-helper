@@ -6,6 +6,7 @@ import { Stepper, type Step } from './components/Stepper';
 import { ProfileStep } from './features/ProfileStep';
 import { UploadStep } from './features/UploadStep';
 import { DeductionsStep } from './features/DeductionsStep';
+import { CapitalForeignStep } from './features/CapitalForeignStep';
 import { ResultsStep } from './features/ResultsStep';
 import { useStore } from './state/store';
 
@@ -13,6 +14,7 @@ const STEPS: Step[] = [
   { id: 'profile', label: 'Profile' },
   { id: 'upload', label: 'Wage statement' },
   { id: 'deductions', label: 'Deductions' },
+  { id: 'capital', label: 'Capital & foreign' },
   { id: 'results', label: 'Estimate' },
 ];
 
@@ -25,6 +27,7 @@ export default function App() {
   const reachable = new Set<string>(['profile', 'upload']);
   if (state.lohnsteuer) {
     reachable.add('deductions');
+    reachable.add('capital');
     reachable.add('results');
   }
 
@@ -89,9 +92,12 @@ export default function App() {
         {current === 'profile' && <ProfileStep onNext={() => go('upload')} />}
         {current === 'upload' && <UploadStep onNext={() => go('deductions')} onBack={() => go('profile')} />}
         {current === 'deductions' && (
-          <DeductionsStep onNext={() => go('results')} onBack={() => go('upload')} />
+          <DeductionsStep onNext={() => go('capital')} onBack={() => go('upload')} />
         )}
-        {current === 'results' && <ResultsStep onBack={() => go('deductions')} />}
+        {current === 'capital' && (
+          <CapitalForeignStep onNext={() => go('results')} onBack={() => go('deductions')} />
+        )}
+        {current === 'results' && <ResultsStep onBack={() => go('capital')} />}
       </main>
 
       <footer className="mx-auto max-w-3xl px-4 py-8 text-center text-xs text-slate-400">

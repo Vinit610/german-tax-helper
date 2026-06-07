@@ -119,6 +119,28 @@ export interface Deductions {
   termLifeInsurance: number;
 }
 
+/** Optional capital income (Anlage KAP) & foreign/GSU income (Anlage AUS). */
+export interface CapitalForeign {
+  /** Whether the user has any of this income (otherwise the step is skipped). */
+  enabled: boolean;
+
+  // --- Capital income → Anlage KAP (Abgeltungsteuer 25%) ---
+  /** Dividends, interest and realised gains (gross). */
+  investmentIncome: number;
+  /** Kapitalertragsteuer already withheld by German banks/brokers. */
+  capitalTaxWithheld: number;
+  /** Creditable foreign withholding tax on capital income (Quellensteuer). */
+  foreignWithholdingTax: number;
+
+  // --- Foreign / equity-compensation income → Anlage N + AUS ---
+  /** RSU/ESPP (GSU) income taxed at the normal rate, not already in Nr. 3. */
+  gsuIncome: number;
+  /** Portion exempt under the India–Germany treaty (Progressionsvorbehalt). */
+  gsuTreatyExempt: number;
+  /** Foreign tax paid on the GSU/foreign income, creditable in Germany. */
+  gsuForeignTaxPaid: number;
+}
+
 /** Everything the user has entered/parsed, persisted to localStorage. */
 export interface AppState {
   schemaVersion: number;
@@ -128,6 +150,7 @@ export interface AppState {
   /** Full set of captured/edited wage-statement lines (incl. informational). */
   wageLines: ParsedField[] | null;
   deductions: Deductions;
+  capitalForeign: CapitalForeign;
   /** Follow-up document checklist the user can tick off. */
   followUpDocs: Record<string, boolean>;
   /** Last step the user reached, for resuming. */

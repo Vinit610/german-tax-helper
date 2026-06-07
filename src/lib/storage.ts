@@ -40,6 +40,15 @@ export function defaultState(): AppState {
       accidentInsurance: 0,
       termLifeInsurance: 0,
     },
+    capitalForeign: {
+      enabled: false,
+      investmentIncome: 0,
+      capitalTaxWithheld: 0,
+      foreignWithholdingTax: 0,
+      gsuIncome: 0,
+      gsuTreatyExempt: 0,
+      gsuForeignTaxPaid: 0,
+    },
     followUpDocs: {},
     lastStep: 'profile',
   };
@@ -58,6 +67,7 @@ export function loadState(): AppState {
       ...parsed,
       profile: { ...base.profile, ...parsed.profile },
       deductions: { ...base.deductions, ...parsed.deductions },
+      capitalForeign: { ...base.capitalForeign, ...parsed.capitalForeign },
     };
     // Migration: older sessions stored only the typed wage data — rebuild the
     // editable line list from it so the review screen shows the values again.

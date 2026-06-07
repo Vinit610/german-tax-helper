@@ -14,6 +14,7 @@ import {
   type WerbungskostenResult,
 } from './deductions';
 import { einkommensteuerGesamt, kirchensteuer, marginalRate, soli } from './incomeTax';
+import { computeCapital, foreignEmploymentCredit, type CapitalResult } from './capitalForeign';
 import { ELSTER_DEDUCTION, ELSTER_LSTB } from './elster';
 
 export interface AnlageSection {
@@ -65,6 +66,16 @@ export interface EstimateResult {
   /** Whether the Fünftelregelung / Progressionsvorbehalt affected the result. */
   usesSpecialRates: boolean;
 
+  // Phase 2: capital & foreign income.
+  /** Anlage KAP result, when capital income was entered. */
+  capital: CapitalResult | null;
+  /** GSU/RSU & foreign employment income taxed at the normal rate. */
+  gsuIncome: number;
+  /** Treaty-exempt GSU portion (Progressionsvorbehalt). */
+  gsuTreatyExempt: number;
+  /** Foreign-tax credit applied to employment income (Anlage AUS). */
+  foreignCredit: number;
+
   marginalRatePct: number;
   averageRatePct: number;
 }
@@ -79,34 +90,54 @@ export function computeEstimate(state: AppState): EstimateResult | null {
   const vorsorge = computeVorsorge(l, d, joint);
   const sonderausgaben = computeOtherSonderausgaben(d, joint);
 
+  const cf = state.capitalForeign;
+  const cfOn = cf.enabled;
+  // GSU/RSU & other foreign employment income taxed at the normal rate.
+  const gsuIncome = cfOn ? Math.max(0, cf.gsuIncome) : 0;
+
   const taxableIncome = Math.max(
     0,
-    l.grossSalary - werbungskosten.applied - vorsorge.total - sonderausgaben.applied,
+    l.grossSalary + gsuIncome - werbungskosten.applied - vorsorge.total - sonderausgaben.applied,
   );
 
   // Tax-free income subject to Progressionsvorbehalt (raises the rate): treaty-
-  // exempt wages (Nr. 6) + wage-replacement benefits (Nr. 15).
-  const progIncome = l.dbaIncome + l.lohnReplacement;
+  // exempt wages (Nr. 6) + wage-replacement benefits (Nr. 15) + treaty-exempt GSU.
+  const progIncome = l.dbaIncome + l.lohnReplacement + (cfOn ? Math.max(0, cf.gsuTreatyExempt) : 0);
   // Extraordinary income taxed via the Fünftelregelung (Nr. 9/10).
   const extraordinary = l.specialIncome;
 
-  const incomeTax = einkommensteuerGesamt(taxableIncome, extraordinary, progIncome, p.assessmentType);
+  const grossIncomeTax = einkommensteuerGesamt(taxableIncome, extraordinary, progIncome, p.assessmentType);
+  // Foreign-tax credit on GSU/foreign employment income (§34c / DBA), capped.
+  const foreignCredit = cfOn
+    ? foreignEmploymentCredit(cf.gsuForeignTaxPaid, gsuIncome, grossIncomeTax, taxableIncome)
+    : 0;
+  const incomeTax = Math.max(0, Math.round((grossIncomeTax - foreignCredit) * 100) / 100);
+
   const soliAmount = soli(incomeTax, p.assessmentType);
   // Combined church rate for joint members (simplified): both same rate → rate × tax.
   const churchRate = (joint
     ? Math.max(p.churchTaxRate, p.spouseChurchTaxRate)
     : p.churchTaxRate) as typeof p.churchTaxRate;
   const churchTax = kirchensteuer(incomeTax, churchRate);
-  const totalLiability = incomeTax + soliAmount + churchTax;
 
-  // All tax withheld across both blocks (regular Nr. 4/5/7/8 + special Nr. 11–14).
+  // Capital income (Anlage KAP) is taxed separately at 25% Abgeltungsteuer.
+  const capital: CapitalResult | null = cfOn && cf.investmentIncome > 0 ? computeCapital(cf, joint, churchRate) : null;
+
+  const totalLiability =
+    Math.round((incomeTax + soliAmount + churchTax + (capital ? capital.liability : 0)) * 100) / 100;
+
+  // All tax withheld: wage (regular Nr. 4/5/7/8 + special Nr. 11–14) + capital tax.
   const totalWithheld =
-    l.incomeTaxWithheld +
-    l.soliWithheld +
-    l.churchTaxWithheld +
-    l.incomeTaxSpecial +
-    l.soliSpecial +
-    l.churchTaxSpecial;
+    Math.round(
+      (l.incomeTaxWithheld +
+        l.soliWithheld +
+        l.churchTaxWithheld +
+        l.incomeTaxSpecial +
+        l.soliSpecial +
+        l.churchTaxSpecial +
+        (capital ? capital.withheld : 0)) *
+        100,
+    ) / 100;
   const refund = Math.round((totalWithheld - totalLiability) * 100) / 100;
 
   const sections: AnlageSection[] = [
@@ -187,6 +218,10 @@ export function computeEstimate(state: AppState): EstimateResult | null {
     lohnReplacement: l.lohnReplacement,
     progIncome,
     usesSpecialRates: extraordinary > 0 || progIncome > 0,
+    capital,
+    gsuIncome,
+    gsuTreatyExempt: cfOn ? Math.max(0, cf.gsuTreatyExempt) : 0,
+    foreignCredit,
     marginalRatePct: Math.round(marginalRate(taxableIncome, p.assessmentType) * 1000) / 10,
     averageRatePct: taxableIncome > 0 ? Math.round((incomeTax / taxableIncome) * 1000) / 10 : 0,
   };

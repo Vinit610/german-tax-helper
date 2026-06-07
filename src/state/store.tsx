@@ -3,7 +3,7 @@
 // simple and fully client-side.
 
 import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react';
-import type { AppState, Deductions, LohnsteuerData, ParsedField, PersonalProfile } from '../types';
+import type { AppState, CapitalForeign, Deductions, LohnsteuerData, ParsedField, PersonalProfile } from '../types';
 import { clearState, defaultState, loadState, saveState } from '../lib/storage';
 import { fieldsToData } from '../lib/parsing/lohnsteuer';
 
@@ -12,6 +12,7 @@ type Action =
   | { type: 'setLohnsteuer'; data: LohnsteuerData | null }
   | { type: 'setWageLines'; fields: ParsedField[] | null }
   | { type: 'setDeductions'; patch: Partial<Deductions> }
+  | { type: 'setCapital'; patch: Partial<CapitalForeign> }
   | { type: 'toggleDoc'; key: string }
   | { type: 'setStep'; step: string }
   | { type: 'reset' };
@@ -30,6 +31,8 @@ function reducer(state: AppState, action: Action): AppState {
       };
     case 'setDeductions':
       return { ...state, deductions: { ...state.deductions, ...action.patch } };
+    case 'setCapital':
+      return { ...state, capitalForeign: { ...state.capitalForeign, ...action.patch } };
     case 'toggleDoc':
       return {
         ...state,
@@ -50,6 +53,7 @@ interface StoreValue {
   setLohnsteuer: (data: LohnsteuerData | null) => void;
   setWageLines: (fields: ParsedField[] | null) => void;
   setDeductions: (patch: Partial<Deductions>) => void;
+  setCapital: (patch: Partial<CapitalForeign>) => void;
   toggleDoc: (key: string) => void;
   setStep: (step: string) => void;
   deleteAllData: () => void;
@@ -71,6 +75,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setLohnsteuer: (data) => dispatch({ type: 'setLohnsteuer', data }),
       setWageLines: (fields) => dispatch({ type: 'setWageLines', fields }),
       setDeductions: (patch) => dispatch({ type: 'setDeductions', patch }),
+      setCapital: (patch) => dispatch({ type: 'setCapital', patch }),
       toggleDoc: (key) => dispatch({ type: 'toggleDoc', key }),
       setStep: (step) => dispatch({ type: 'setStep', step }),
       deleteAllData: () => {

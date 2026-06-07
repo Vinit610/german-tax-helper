@@ -78,8 +78,8 @@ export const ANLAGE_AUS: FormRef[] = [
 export const FORM_OVERVIEW: { form: string; english: string; fedFrom: string }[] = [
   { form: 'Anlage N', english: 'Employment income & work expenses', fedFrom: 'Lohnsteuerbescheinigung Nr. 3–7 (salary, taxes withheld)' },
   { form: 'Anlage Vorsorgeaufwand', english: 'Pension, health, insurance', fedFrom: 'Lohnsteuerbescheinigung Nr. 22a–28 (social insurance)' },
-  { form: 'Anlage KAP', english: 'Capital income (later phase)', fedFrom: 'Bank/broker tax statements — not the wage certificate' },
-  { form: 'Anlage AUS', english: 'Foreign income & tax credit (later phase)', fedFrom: 'Foreign income proof + foreign tax paid — not the wage certificate' },
+  { form: 'Anlage KAP', english: 'Capital income (25% Abgeltungsteuer)', fedFrom: 'Bank/broker tax statements — entered on the “Capital & foreign” step' },
+  { form: 'Anlage AUS', english: 'Foreign income & tax credit (DTAA)', fedFrom: 'Foreign income + foreign tax paid — entered on the “Capital & foreign” step' },
 ];
 
 export const LINE_NUMBER_DISCLAIMER =
