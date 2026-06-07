@@ -22,12 +22,19 @@ export interface FormRef {
 // --- Wage-statement lines (Lohnsteuerbescheinigung Nr.) → target form -------
 // These are the values that flow from the wage certificate into the return.
 export const ELSTER_LSTB: Record<string, FormRef> = {
-  // Income & taxes withheld → Anlage N (lines 6–10 are consistently confirmed).
+  // Income & taxes on the regular wage → Anlage N.
   '3': { form: 'Anlage N', line: 'Zeile 6', caption: 'Bruttoarbeitslohn (lt. Nr. 3 der Lohnsteuerbescheinigung)' },
-  '4': { form: 'Anlage N', line: 'Zeile 7', caption: 'Lohnsteuer (lt. Nr. 4)' },
-  '5': { form: 'Anlage N', line: 'Zeile 8', caption: 'Solidaritätszuschlag (lt. Nr. 5)' },
-  '6': { form: 'Anlage N', line: 'Zeile 9', caption: 'Kirchensteuer des Arbeitnehmers (lt. Nr. 6)' },
-  '7': { form: 'Anlage N', line: 'Zeile 10', caption: 'Kirchensteuer des Ehegatten/Lebenspartners (lt. Nr. 7)' },
+  '4': { form: 'Anlage N', line: 'Zeile 7', caption: 'Einbehaltene Lohnsteuer von 3. (lt. Nr. 4)' },
+  '5': { form: 'Anlage N', line: 'Zeile 8', caption: 'Einbehaltener Solidaritätszuschlag von 3. (lt. Nr. 5)' },
+  '7': { form: 'Anlage N', line: 'Zeile 9', caption: 'Einbehaltene Kirchensteuer des Arbeitnehmers (lt. Nr. 7)' },
+  '8': { form: 'Anlage N', line: 'Zeile 10', caption: 'Einbehaltene Kirchensteuer des Ehegatten/Lebenspartners (lt. Nr. 8)' },
+
+  // Specially-taxed multi-year pay (Fünftelregelung) → Anlage N.
+  '6': { form: 'Anlage N', line: 'Zeile 22–24', caption: 'Steuerfreier Arbeitslohn nach DBA/ATE (lt. Nr. 6) — Progressionsvorbehalt', verify: true },
+  '10': { form: 'Anlage N', line: 'Zeile 17–18', caption: 'Ermäßigt besteuerter Arbeitslohn für mehrere Kalenderjahre (lt. Nr. 10)', verify: true },
+  '11': { form: 'Anlage N', line: 'Zeile 19', caption: 'Einbehaltene Lohnsteuer von 9. und 10. (lt. Nr. 11)', verify: true },
+  '12': { form: 'Anlage N', line: 'Zeile 20', caption: 'Solidaritätszuschlag von 9. und 10. (lt. Nr. 12)', verify: true },
+  '17': { form: 'Anlage N', line: 'Zeile 31–40', caption: 'Steuerfreie Arbeitgeberleistungen, auf die Entfernungspauschale anrechenbar (lt. Nr. 17)', verify: true },
 
   // Social insurance → Anlage Vorsorgeaufwand.
   '22a': { form: 'Anlage Vorsorgeaufwand', line: 'Zeile 4', caption: 'Arbeitgeberanteil zur gesetzlichen Rentenversicherung (lt. Nr. 22a)' },
@@ -35,6 +42,7 @@ export const ELSTER_LSTB: Record<string, FormRef> = {
   '25': { form: 'Anlage Vorsorgeaufwand', line: 'Zeile 11', caption: 'Arbeitnehmerbeiträge zur inländischen gesetzlichen Krankenversicherung (lt. Nr. 25)' },
   '26': { form: 'Anlage Vorsorgeaufwand', line: 'Zeile 12', caption: 'Arbeitnehmerbeiträge zur sozialen Pflegeversicherung (lt. Nr. 26)' },
   '27': { form: 'Anlage Vorsorgeaufwand', line: 'Zeile 27', caption: 'Arbeitnehmerbeiträge zur Arbeitslosenversicherung (lt. Nr. 27)', verify: true },
+  '28': { form: 'Anlage Vorsorgeaufwand', line: 'Zeile 23–27', caption: 'Beiträge zur privaten Kranken-/Pflege-Pflichtversicherung oder Mindestvorsorgepauschale (lt. Nr. 28)', verify: true },
 };
 
 // --- Deduction inputs → target form -----------------------------------------

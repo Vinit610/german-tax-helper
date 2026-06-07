@@ -46,10 +46,17 @@ export interface EstimateResult {
   /** Total computed liability (tax + soli + church). */
   totalLiability: number;
 
-  /** Already withheld via payroll (Lohnsteuer + Soli + Kirchensteuer). */
+  /** Withheld on the regular wage (Nr. 4+5+7+8) — basis of the estimate. */
   totalWithheld: number;
   /** Positive = refund expected; negative = additional payment due. */
   refund: number;
+
+  // Specially-taxed / tax-free items captured but NOT in the simple estimate.
+  specialIncome: number;
+  specialTaxWithheld: number;
+  dbaIncome: number;
+  /** Total tax withheld across both blocks (for completeness). */
+  totalTaxWithheldAll: number;
 
   marginalRatePct: number;
   averageRatePct: number;
@@ -61,7 +68,7 @@ export function computeEstimate(state: AppState): EstimateResult | null {
 
   const joint = p.assessmentType === 'joint';
 
-  const werbungskosten = computeWerbungskosten(d);
+  const werbungskosten = computeWerbungskosten(d, l.agCommuteUntaxed);
   const vorsorge = computeVorsorge(l, d, joint);
   const sonderausgaben = computeOtherSonderausgaben(d, joint);
 
@@ -154,6 +161,14 @@ export function computeEstimate(state: AppState): EstimateResult | null {
     totalLiability,
     totalWithheld,
     refund,
+    specialIncome: l.specialIncome,
+    specialTaxWithheld: Math.round((l.incomeTaxSpecial + l.soliSpecial + l.churchTaxSpecial) * 100) / 100,
+    dbaIncome: l.dbaIncome,
+    totalTaxWithheldAll:
+      Math.round(
+        (l.incomeTaxWithheld + l.soliWithheld + l.churchTaxWithheld + l.incomeTaxSpecial + l.soliSpecial + l.churchTaxSpecial) *
+          100,
+      ) / 100,
     marginalRatePct: Math.round(marginalRate(taxableIncome, p.assessmentType) * 1000) / 10,
     averageRatePct: taxableIncome > 0 ? Math.round((incomeTax / taxableIncome) * 1000) / 10 : 0,
   };

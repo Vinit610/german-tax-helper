@@ -31,23 +31,40 @@ export interface PersonalProfile {
  * UI can show exactly where a value came from.
  */
 export interface LohnsteuerData {
-  /** Line 3 — Bruttoarbeitslohn (gross salary). */
+  /** Nr. 3 — Bruttoarbeitslohn (regular wage, excludes Nr. 9/10). */
   grossSalary: number;
-  /** Line 4 — Einbehaltene Lohnsteuer (income tax withheld). */
+  /** Nr. 4 — Einbehaltene Lohnsteuer von 3. (tax on the regular wage). */
   incomeTaxWithheld: number;
-  /** Line 5 — Einbehaltener Solidaritätszuschlag. */
+  /** Nr. 5 — Einbehaltener Solidaritätszuschlag von 3. */
   soliWithheld: number;
-  /** Line 6 — Einbehaltene Kirchensteuer (church tax withheld). */
+  /** Nr. 7 (+8) — Einbehaltene Kirchensteuer (you + spouse) von 3. */
   churchTaxWithheld: number;
-  /** Lines 22/23 — Arbeitnehmer-/Arbeitgeberanteil gesetzliche Rentenversicherung. */
-  pensionEmployee: number;
+
+  /** Nr. 11 — Einbehaltene Lohnsteuer von 9. und 10. (on specially-taxed pay). */
+  incomeTaxSpecial: number;
+  /** Nr. 12 — Solidaritätszuschlag von 9. und 10. */
+  soliSpecial: number;
+  /** Nr. 13 (+14) — Kirchensteuer von 9. und 10. */
+  churchTaxSpecial: number;
+  /** Nr. 9 + 10 — Ermäßigt besteuerter Arbeitslohn (Fünftelregelung, deferred). */
+  specialIncome: number;
+  /** Nr. 6 — Steuerfreier Arbeitslohn nach DBA/ATE (Progressionsvorbehalt). */
+  dbaIncome: number;
+  /** Nr. 17 — Steuerfreie AG-Leistungen, auf die Entfernungspauschale anrechenbar. */
+  agCommuteUntaxed: number;
+
+  /** Nr. 22a — Arbeitgeberanteil gesetzliche Rentenversicherung. */
   pensionEmployer: number;
-  /** Line 25 — Arbeitnehmeranteil gesetzliche Krankenversicherung (health). */
+  /** Nr. 23a — Arbeitnehmeranteil gesetzliche Rentenversicherung. */
+  pensionEmployee: number;
+  /** Nr. 25 — Arbeitnehmerbeiträge gesetzliche Krankenversicherung. */
   healthInsuranceEmployee: number;
-  /** Line 26 — Arbeitnehmeranteil soziale Pflegeversicherung (long-term care). */
+  /** Nr. 26 — Arbeitnehmerbeiträge soziale Pflegeversicherung. */
   careInsuranceEmployee: number;
-  /** Line 27 — Arbeitnehmeranteil Arbeitslosenversicherung (unemployment). */
+  /** Nr. 27 — Arbeitnehmerbeiträge Arbeitslosenversicherung. */
   unemploymentInsuranceEmployee: number;
+  /** Nr. 28 — Private Kranken-/Pflege-Pflichtversicherung oder Mindestvorsorgepauschale. */
+  privateHealthCare: number;
   /** eTIN / tax number if detected (optional, informational only). */
   eTIN?: string;
 }

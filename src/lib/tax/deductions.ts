@@ -70,10 +70,12 @@ export function homeOfficeAllowance(days: number): number {
 }
 
 /** Werbungskosten (income-related expenses) → Anlage N. */
-export function computeWerbungskosten(d: Deductions): WerbungskostenResult {
+export function computeWerbungskosten(d: Deductions, agCommuteUntaxed = 0): WerbungskostenResult {
   const pauschale = commuteAllowance(d.commuteOneWayKm, d.commuteDays, d.commuteMode);
   // For public transport you may claim actual cost if it exceeds the Pauschale.
-  const commute = d.commuteMode !== 'car' ? Math.max(pauschale, d.commutePublicCost) : pauschale;
+  const gross = d.commuteMode !== 'car' ? Math.max(pauschale, d.commutePublicCost) : pauschale;
+  // Tax-free employer commute benefits (Lohnsteuerbescheinigung Nr. 17) reduce it.
+  const commute = Math.max(0, gross - Math.max(0, agCommuteUntaxed));
   const homeOffice = homeOfficeAllowance(d.homeOfficeDays);
   const items: LineItem[] = [
     {
@@ -131,7 +133,10 @@ export function computeVorsorge(l: LohnsteuerData, d: Deductions, joint: boolean
   const pensionContributions = l.pensionEmployee + l.pensionEmployer;
   const pension = Math.max(0, Math.min(pensionContributions, pensionCap) - l.pensionEmployer);
 
-  const basisHealthCare = Math.round((l.healthInsuranceEmployee * 0.96 + l.careInsuranceEmployee) * 100) / 100;
+  // Statutory health (×0.96 for the sick-pay component) + care, plus any private
+  // basic / minimum-provision contributions from Nr. 28 — all fully deductible.
+  const basisHealthCare =
+    Math.round((l.healthInsuranceEmployee * 0.96 + l.careInsuranceEmployee + l.privateHealthCare) * 100) / 100;
 
   const cap = joint ? SONSTIGE_VORSORGE_CAP * 2 : SONSTIGE_VORSORGE_CAP;
   const remaining = Math.max(0, cap - basisHealthCare);

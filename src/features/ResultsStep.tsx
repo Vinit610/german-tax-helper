@@ -111,6 +111,45 @@ export function ResultsStep({ onBack }: { onBack: () => void }) {
         </p>
       </div>
 
+      {(result.specialIncome > 0 || result.specialTaxWithheld > 0 || result.dbaIncome > 0) && (
+        <div className="card space-y-2 border-indigo-200 bg-indigo-50/40">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-indigo-700">
+            Captured, but taxed specially — not in this estimate
+          </h3>
+          <p className="text-sm text-slate-600">
+            Your statement includes income that isn’t taxed at the normal rate, so it’s shown here for
+            completeness but kept out of the simple refund figure above (it needs the Fünftelregelung
+            and Progressionsvorbehalt, planned for a later phase):
+          </p>
+          <table className="w-full text-sm">
+            <tbody>
+              {result.specialIncome > 0 && (
+                <tr className="border-t border-indigo-100">
+                  <td className="py-1.5">Multi-year / reduced-rate pay <span className="text-xs text-slate-400">ermäßigt besteuert · Nr. 9/10</span></td>
+                  <td className="py-1.5 text-right tabular-nums">{formatEur(result.specialIncome)}</td>
+                </tr>
+              )}
+              {result.specialTaxWithheld > 0 && (
+                <tr className="border-t border-indigo-100">
+                  <td className="py-1.5">Tax withheld on that pay <span className="text-xs text-slate-400">Nr. 11/12/13 — counts toward your final bill</span></td>
+                  <td className="py-1.5 text-right tabular-nums">{formatEur(result.specialTaxWithheld)}</td>
+                </tr>
+              )}
+              {result.dbaIncome > 0 && (
+                <tr className="border-t border-indigo-100">
+                  <td className="py-1.5">Treaty-exempt wage <span className="text-xs text-slate-400">steuerfrei nach DBA · Nr. 6 — raises your rate (Progressionsvorbehalt)</span></td>
+                  <td className="py-1.5 text-right tabular-nums">{formatEur(result.dbaIncome)}</td>
+                </tr>
+              )}
+              <tr className="border-t border-indigo-200 font-medium">
+                <td className="py-1.5">Total tax withheld on your statement (all blocks)</td>
+                <td className="py-1.5 text-right tabular-nums">{formatEur(result.totalTaxWithheldAll)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {/* Filing it yourself on ELSTER */}
       <div className="card space-y-3">
         <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
@@ -136,7 +175,7 @@ export function ResultsStep({ onBack }: { onBack: () => void }) {
               { ref: ELSTER_LSTB['3'], label: 'Gross salary', amount: l.grossSalary },
               { ref: ELSTER_LSTB['4'], label: 'Income tax withheld', amount: l.incomeTaxWithheld },
               { ref: ELSTER_LSTB['5'], label: 'Solidarity surcharge', amount: l.soliWithheld },
-              { ref: ELSTER_LSTB['6'], label: 'Church tax withheld', amount: l.churchTaxWithheld },
+              { ref: ELSTER_LSTB['7'], label: 'Church tax withheld', amount: l.churchTaxWithheld },
             ].map((row, i) => (
               <tr key={i} className="border-t border-slate-100">
                 <td className="py-1.5 text-slate-700">{row.label}</td>
