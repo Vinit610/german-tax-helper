@@ -3,7 +3,15 @@
 // simple and fully client-side.
 
 import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react';
-import type { AppState, CapitalForeign, Deductions, LohnsteuerData, ParsedField, PersonalProfile } from '../types';
+import type {
+  AppState,
+  CapitalForeign,
+  Deductions,
+  LohnsteuerData,
+  ParsedField,
+  PersonalProfile,
+  RsuTranche,
+} from '../types';
 import { clearState, defaultState, loadState, saveState } from '../lib/storage';
 import { fieldsToData } from '../lib/parsing/lohnsteuer';
 
@@ -13,6 +21,9 @@ type Action =
   | { type: 'setWageLines'; fields: ParsedField[] | null }
   | { type: 'setDeductions'; patch: Partial<Deductions> }
   | { type: 'setCapital'; patch: Partial<CapitalForeign> }
+  | { type: 'addRsuTranche'; tranche: RsuTranche }
+  | { type: 'updateRsuTranche'; id: string; patch: Partial<RsuTranche> }
+  | { type: 'removeRsuTranche'; id: string }
   | { type: 'toggleDoc'; key: string }
   | { type: 'setStep'; step: string }
   | { type: 'reset' };
@@ -33,6 +44,15 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, deductions: { ...state.deductions, ...action.patch } };
     case 'setCapital':
       return { ...state, capitalForeign: { ...state.capitalForeign, ...action.patch } };
+    case 'addRsuTranche':
+      return { ...state, rsuTranches: [...state.rsuTranches, action.tranche] };
+    case 'updateRsuTranche':
+      return {
+        ...state,
+        rsuTranches: state.rsuTranches.map((t) => (t.id === action.id ? { ...t, ...action.patch } : t)),
+      };
+    case 'removeRsuTranche':
+      return { ...state, rsuTranches: state.rsuTranches.filter((t) => t.id !== action.id) };
     case 'toggleDoc':
       return {
         ...state,
@@ -54,6 +74,9 @@ interface StoreValue {
   setWageLines: (fields: ParsedField[] | null) => void;
   setDeductions: (patch: Partial<Deductions>) => void;
   setCapital: (patch: Partial<CapitalForeign>) => void;
+  addRsuTranche: (tranche: RsuTranche) => void;
+  updateRsuTranche: (id: string, patch: Partial<RsuTranche>) => void;
+  removeRsuTranche: (id: string) => void;
   toggleDoc: (key: string) => void;
   setStep: (step: string) => void;
   deleteAllData: () => void;
@@ -76,6 +99,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setWageLines: (fields) => dispatch({ type: 'setWageLines', fields }),
       setDeductions: (patch) => dispatch({ type: 'setDeductions', patch }),
       setCapital: (patch) => dispatch({ type: 'setCapital', patch }),
+      addRsuTranche: (tranche) => dispatch({ type: 'addRsuTranche', tranche }),
+      updateRsuTranche: (id, patch) => dispatch({ type: 'updateRsuTranche', id, patch }),
+      removeRsuTranche: (id) => dispatch({ type: 'removeRsuTranche', id }),
       toggleDoc: (key) => dispatch({ type: 'toggleDoc', key }),
       setStep: (step) => dispatch({ type: 'setStep', step }),
       deleteAllData: () => {

@@ -4,6 +4,7 @@
 
 import { AnlageBadge } from '../components/AnlageBadge';
 import { NumberField } from '../components/NumberField';
+import { RsuHelper } from './RsuHelper';
 import { computeCapital } from '../lib/tax/capitalForeign';
 import { formatEur } from '../lib/format';
 import { useStore } from '../state/store';
@@ -125,10 +126,14 @@ export function CapitalForeignStep({ onNext, onBack }: { onNext: () => void; onB
               income twice.
             </p>
             <p className="rounded-lg bg-indigo-50 px-3 py-2 text-xs text-indigo-800">
-              India–Germany treaty (credit method): income is generally taxed where the work is
-              performed; tax already paid in India on the same income is credited here to avoid double
-              taxation. Simplified estimate — confirm the treaty article and amounts before filing.
+              India–Germany treaty: income is generally taxed where the work is performed; the foreign
+              share is relieved either by exemption (raising your rate) or by crediting the Indian tax.
+              Simplified estimate — confirm the treaty article and amounts before filing.
             </p>
+
+            <div className="rounded-xl border border-slate-200 p-4">
+              <RsuHelper />
+            </div>
           </section>
         </>
       )}

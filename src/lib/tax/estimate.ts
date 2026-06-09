@@ -15,6 +15,7 @@ import {
 } from './deductions';
 import { einkommensteuerGesamt, kirchensteuer, marginalRate, soli } from './incomeTax';
 import { computeCapital, foreignTaxCredit, type CapitalResult } from './capitalForeign';
+import { computeRsu, type RsuComputation } from './rsu';
 import { ELSTER_DEDUCTION, ELSTER_LSTB } from './elster';
 
 export interface AnlageSection {
@@ -75,6 +76,8 @@ export interface EstimateResult {
   gsuTreatyExempt: number;
   /** Foreign-tax credit applied to employment income (Anlage AUS). */
   foreignCredit: number;
+  /** RSU/ESPP allocation workpaper for the current tax year. */
+  rsu: RsuComputation;
 
   marginalRatePct: number;
   averageRatePct: number;
@@ -96,29 +99,40 @@ export function computeEstimate(state: AppState): EstimateResult | null {
 
   const cf = state.capitalForeign;
   const cfOn = cf.enabled;
-  // GSU/RSU & other foreign employment income taxed at the normal rate.
-  const gsuIncome = cfOn ? Math.max(0, cf.gsuIncome) : 0;
+  // RSU/ESPP allocation helper (only tranches vesting in this tax year apply).
+  const rsu = computeRsu(state.rsuTranches, state.taxYear, cf.rsuReliefMethod);
+
+  // German-taxable foreign employment income added here (not on the statement):
+  // manual GSU + RSU helper's German-source share of not-yet-reported vests.
+  const gsuIncome = (cfOn ? Math.max(0, cf.gsuIncome) : 0) + rsu.addedToTaxable;
+  // Treaty-exempt income already inside the wage statement → remove from taxable.
+  const exemptOnCert = (cfOn ? Math.max(0, cf.treatyExemptOnCert) : 0) + rsu.exemptSubtractOnCert;
 
   const taxableIncome = Math.max(
     0,
-    l.grossSalary + gsuIncome - werbungskosten.applied - vorsorge.total - sonderausgaben.applied,
+    l.grossSalary + gsuIncome - exemptOnCert - werbungskosten.applied - vorsorge.total - sonderausgaben.applied,
   );
 
   // Tax-free income subject to Progressionsvorbehalt (raises the rate): treaty-
-  // exempt wages (Nr. 6) + wage-replacement benefits (Nr. 15) + treaty-exempt GSU.
-  const progIncome = l.dbaIncome + l.lohnReplacement + (cfOn ? Math.max(0, cf.gsuTreatyExempt) : 0);
+  // exempt wages (Nr. 6) + wage-replacement (Nr. 15) + treaty-exempt equity income.
+  const progIncome =
+    l.dbaIncome +
+    l.lohnReplacement +
+    (cfOn ? Math.max(0, cf.gsuTreatyExempt) : 0) +
+    rsu.exemptProgression +
+    exemptOnCert;
   // Extraordinary income taxed via the Fünftelregelung (Nr. 9/10).
   const extraordinary = l.specialIncome;
 
   const grossIncomeTax = einkommensteuerGesamt(taxableIncome, extraordinary, progIncome, p.assessmentType);
-  // Foreign-tax credit (§34c / DBA). The foreign-taxed income may be the GSU we
-  // added OR income already on the wage statement (e.g. RSUs in line 3/10); both
-  // count toward the credit base, capped at the German tax on that income.
-  const foreignTaxedIncome = cfOn ? gsuIncome + Math.max(0, cf.foreignTaxedIncomeOnCert) : 0;
+  // Foreign-tax credit (§34c / DBA). The foreign-taxed income may be income we
+  // added OR income already on the statement (RSUs in line 3/10); both count
+  // toward the credit base, capped at the German tax on that income.
+  const foreignTaxedIncome = (cfOn ? gsuIncome + Math.max(0, cf.foreignTaxedIncomeOnCert) : 0) + rsu.creditIncome;
+  const foreignTaxPaid =
+    (cfOn ? cf.gsuForeignTaxPaid : 0) + (cf.rsuReliefMethod === 'credit' ? rsu.indianTaxPaid : 0);
   const totalTaxedIncome = taxableIncome + extraordinary;
-  const foreignCredit = cfOn
-    ? foreignTaxCredit(cf.gsuForeignTaxPaid, foreignTaxedIncome, grossIncomeTax, totalTaxedIncome)
-    : 0;
+  const foreignCredit = foreignTaxCredit(foreignTaxPaid, foreignTaxedIncome, grossIncomeTax, totalTaxedIncome);
   const incomeTax = Math.max(0, Math.round((grossIncomeTax - foreignCredit) * 100) / 100);
 
   const soliAmount = soli(incomeTax, p.assessmentType);
@@ -228,8 +242,9 @@ export function computeEstimate(state: AppState): EstimateResult | null {
     usesSpecialRates: extraordinary > 0 || progIncome > 0,
     capital,
     gsuIncome,
-    gsuTreatyExempt: cfOn ? Math.max(0, cf.gsuTreatyExempt) : 0,
+    gsuTreatyExempt: (cfOn ? Math.max(0, cf.gsuTreatyExempt) : 0) + rsu.exemptProgression + exemptOnCert,
     foreignCredit,
+    rsu,
     marginalRatePct: Math.round(marginalRate(taxableIncome, p.assessmentType) * 1000) / 10,
     averageRatePct: taxableIncome > 0 ? Math.round((incomeTax / taxableIncome) * 1000) / 10 : 0,
   };

@@ -290,6 +290,48 @@ export function ResultsStep({ onBack }: { onBack: () => void }) {
         </div>
       )}
 
+      {/* RSU/ESPP allocation workpaper */}
+      {result.rsu.perTranche.length > 0 && (
+        <div className="card space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-base font-semibold">RSU / ESPP allocation</h3>
+            <AnlageBadge name="Anlage N" />
+            <AnlageBadge name="Anlage AUS" />
+          </div>
+          <p className="text-sm text-slate-500">
+            Per-vest grant→vest split. Attach this as your allocation basis — the Finanzamt expects it
+            for equity income. Only {state.taxYear} vests are in your estimate.
+          </p>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-slate-400">
+                <th className="py-1 font-medium">Tranche</th>
+                <th className="py-1 font-medium">Vest</th>
+                <th className="py-1 text-right font-medium">Value</th>
+                <th className="py-1 text-right font-medium">DE share</th>
+                <th className="py-1 text-right font-medium">German-taxable</th>
+                <th className="py-1 text-right font-medium">Treaty-relieved</th>
+              </tr>
+            </thead>
+            <tbody>
+              {result.rsu.perTranche.map((t) => (
+                <tr key={t.id} className={`border-t border-slate-100 ${t.inTaxYear ? '' : 'text-slate-400'}`}>
+                  <td className="py-1.5">{t.label}</td>
+                  <td className="py-1.5">{t.vestDate}{!t.inTaxYear && ' ·other yr'}</td>
+                  <td className="py-1.5 text-right tabular-nums">{formatEur(t.vestValue)}</td>
+                  <td className="py-1.5 text-right tabular-nums">{formatPct(t.germanShare * 100)}</td>
+                  <td className="py-1.5 text-right tabular-nums">{formatEur(t.germanTaxable)}</td>
+                  <td className="py-1.5 text-right tabular-nums">{formatEur(t.foreignPortion)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="text-xs text-slate-400">
+            Relief method: {result.rsu.reliefMethod === 'credit' ? 'credit (Anrechnung) — Indian tax credited' : 'exemption with Progressionsvorbehalt — foreign share tax-free but raises the rate'}.
+          </p>
+        </div>
+      )}
+
       {/* Filing it yourself on ELSTER */}
       <div className="card space-y-3">
         <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">

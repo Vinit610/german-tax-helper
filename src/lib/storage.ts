@@ -9,7 +9,7 @@ const STORAGE_KEY = 'german-tax-helper:v1';
 // Bumped whenever the persisted shape changes (wage-line set, deduction fields,
 // data model). A mismatch resets to defaults so stale state can't hide newly
 // parsed lines or crash the UI.
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 export function defaultState(): AppState {
   return {
@@ -50,8 +50,11 @@ export function defaultState(): AppState {
       gsuIncome: 0,
       foreignTaxedIncomeOnCert: 0,
       gsuTreatyExempt: 0,
+      treatyExemptOnCert: 0,
       gsuForeignTaxPaid: 0,
+      rsuReliefMethod: 'exemption',
     },
+    rsuTranches: [],
     followUpDocs: {},
     lastStep: 'profile',
   };
@@ -71,6 +74,7 @@ export function loadState(): AppState {
       profile: { ...base.profile, ...parsed.profile },
       deductions: { ...base.deductions, ...parsed.deductions },
       capitalForeign: { ...base.capitalForeign, ...parsed.capitalForeign },
+      rsuTranches: parsed.rsuTranches ?? base.rsuTranches,
     };
     // Migration: older sessions stored only the typed wage data — rebuild the
     // editable line list from it so the review screen shows the values again.

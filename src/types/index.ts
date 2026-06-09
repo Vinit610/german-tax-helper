@@ -127,6 +127,33 @@ export interface Deductions {
   termLifeInsurance: number;
 }
 
+/**
+ * A single RSU/ESPP vesting tranche, for the grant/vest allocation helper.
+ * Each vest is taxed in Germany at vest; only the share attributable to German
+ * workdays during the grant→vest window is German-source (the rest is relieved
+ * under the India–Germany treaty).
+ */
+export interface RsuTranche {
+  id: string;
+  /** Human label, e.g. "2022 grant — tranche 3 (22%)". */
+  label: string;
+  /** Vest date (ISO yyyy-mm-dd). Determines which German tax year it falls in. */
+  vestDate: string;
+  /** Fair market value at vest, in EUR. */
+  vestValue: number;
+  /** Workdays performed in Germany during the grant→vest window. */
+  germanWorkdays: number;
+  /** Total workdays in the grant→vest window. */
+  totalWorkdays: number;
+  /** True if this vest is already reported on the German wage statement (line 3/10). */
+  onCertificate: boolean;
+  /** Indian (or other foreign) tax paid on this specific vest, in EUR. */
+  indianTaxPaid: number;
+}
+
+/** How to relieve the foreign-source share of equity income. */
+export type RsuReliefMethod = 'exemption' | 'credit';
+
 /** Optional capital income (Anlage KAP) & foreign/GSU income (Anlage AUS). */
 export interface CapitalForeign {
   /** Whether the user has any of this income (otherwise the step is skipped). */
@@ -151,8 +178,15 @@ export interface CapitalForeign {
   foreignTaxedIncomeOnCert: number;
   /** Portion exempt under the India–Germany treaty (Progressionsvorbehalt). */
   gsuTreatyExempt: number;
+  /**
+   * Income already on the wage statement (line 3/10) that is treaty-EXEMPT, so it
+   * is subtracted from German-taxable income and instead raises the rate only.
+   */
+  treatyExemptOnCert: number;
   /** Total foreign tax paid abroad (e.g. India) on the GSU/foreign income, creditable. */
   gsuForeignTaxPaid: number;
+  /** Relief method for the foreign-source share of equity income. */
+  rsuReliefMethod: RsuReliefMethod;
 }
 
 /** Everything the user has entered/parsed, persisted to localStorage. */
@@ -165,6 +199,8 @@ export interface AppState {
   wageLines: ParsedField[] | null;
   deductions: Deductions;
   capitalForeign: CapitalForeign;
+  /** RSU/ESPP vesting tranches (multi-year record for the allocation helper). */
+  rsuTranches: RsuTranche[];
   /** Follow-up document checklist the user can tick off. */
   followUpDocs: Record<string, boolean>;
   /** Last step the user reached, for resuming. */
