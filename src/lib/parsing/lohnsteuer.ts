@@ -105,6 +105,27 @@ function normalise(text: string): Normalised {
 
 const stripNonAlnum = (s: string) => s.toLowerCase().replace(/[^a-z0-9äöüß]/g, '');
 
+// Words that follow an *inline* line reference ("ohne 9. und 10.", "von 3.") —
+// as opposed to a real next entry, which is followed by a label noun.
+const REF_CONNECTORS = new Set([
+  'und', 'oder', 'u', 'bis', 'sowie', 'ggf', 'von', 'der', 'des', 'die', 'das',
+  'zur', 'zum', 'im', 'in', 'abzüglich', 'ohne', 'enthalten', 'lt', 'nr', 'bzw',
+]);
+
+/**
+ * Index at which to truncate the amount search: the next *real* form entry (a
+ * line number followed by a label word). Inline references like "ohne 9. und
+ * 10." are skipped (the following word is a connector, or a digit), so a line's
+ * own amount printed after such a reference is still found. Returns -1 if none.
+ */
+function nextEntryCut(slice: string): number {
+  const re = /(?:^|\s)\d{1,2}\s*[a-c]?\s*[.)]\s*([a-zäöüß][a-zäöüß-]*)/gi;
+  for (const m of slice.matchAll(re)) {
+    if (!REF_CONNECTORS.has(m[1].toLowerCase())) return m.index ?? -1;
+  }
+  return -1;
+}
+
 function findByCaption(text: string, n: Normalised, captions: string[], prefix?: string): number | null {
   const nprefix = prefix ? stripNonAlnum(prefix) : '';
   for (const core of captions) {
@@ -118,10 +139,10 @@ function findByCaption(text: string, n: Normalised, captions: string[], prefix?:
       if (nprefix && !n.norm.slice(Math.max(0, idx - 40), idx).includes(nprefix)) continue;
       const origStart = n.map[idx + ncore.length - 1] + 1;
       let slice = text.slice(origStart, origStart + 200);
-      // Stop at the next form line-number marker (" 22. ", "\n23a) ") so a line
-      // with no value of its own can't borrow the following line's amount.
-      const stop = slice.match(/\s\d{1,2}\s*[a-c]?\s*[.)]\s/);
-      if (stop && stop.index !== undefined) slice = slice.slice(0, stop.index);
+      // Don't let a line with no value borrow the next entry's amount — but don't
+      // cut at inline references like "ohne 9. und 10." either.
+      const cut = nextEntryCut(slice);
+      if (cut >= 0) slice = slice.slice(0, cut);
       const v = bestAmount(slice);
       if (v !== null) return v;
     }
