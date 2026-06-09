@@ -53,6 +53,8 @@ export const ELSTER_DEDUCTION: Record<string, FormRef> = {
   unionDues: { form: 'Anlage N', line: 'Zeile 41', caption: 'Beiträge zu Berufsverbänden', verify: true },
   training: { form: 'Anlage N', line: 'Zeile 46', caption: 'Fortbildungskosten', verify: true },
   applications: { form: 'Anlage N', line: 'Zeile 47–48', caption: 'Bewerbungskosten und weitere Werbungskosten', verify: true },
+  meals: { form: 'Anlage N', line: 'Zeile 49–57', caption: 'Reisekosten / Verpflegungsmehraufwendungen bei Auswärtstätigkeit', verify: true },
+  doubleHousehold: { form: 'Anlage N', line: 'Zeile 61–87', caption: 'Mehraufwendungen für doppelte Haushaltsführung', verify: true },
   donations: { form: 'Anlage Sonderausgaben', line: 'Zeile 5–12', caption: 'Zuwendungen (Spenden und Mitgliedsbeiträge)', verify: true },
   otherInsurance: { form: 'Anlage Vorsorgeaufwand', line: 'Zeile 11–22', caption: 'Weitere sonstige Vorsorgeaufwendungen (Haftpflicht, Unfall, Risikoleben)', verify: true },
 };

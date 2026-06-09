@@ -18,7 +18,11 @@ export function DeductionsStep({ onNext, onBack }: { onNext: () => void; onBack:
 
   const commute = commuteAllowance(d.commuteOneWayKm, d.commuteDays, d.commuteMode);
   const homeOffice = homeOfficeAllowance(d.homeOfficeDays);
-  const wk = computeWerbungskosten(d);
+  const wk = computeWerbungskosten(d, {
+    agCommuteUntaxed: state.lohnsteuer?.agCommuteUntaxed,
+    mealReimbursed: state.lohnsteuer?.mealReimbursed,
+    doubleHouseholdReimbursed: state.lohnsteuer?.doubleHouseholdReimbursed,
+  });
 
   return (
     <div className="card space-y-8">
@@ -117,6 +121,28 @@ export function DeductionsStep({ onNext, onBack }: { onNext: () => void; onBack:
             value={d.applicationCosts}
             onChange={(v) => setDeductions({ applicationCosts: v })}
             hint="Job applications, account fees, etc."
+          />
+          <NumberField
+            label="Meal allowance (business travel)"
+            germanLabel="Verpflegungsmehraufwand"
+            value={d.mealAllowance}
+            onChange={(v) => setDeductions({ mealAllowance: v })}
+            hint={
+              state.lohnsteuer?.mealReimbursed
+                ? `Tax-free €${state.lohnsteuer.mealReimbursed.toFixed(0)} (Nr. 20) is subtracted`
+                : '€14/€28 per day away — enter your total claim'
+            }
+          />
+          <NumberField
+            label="Double-household costs"
+            germanLabel="Doppelte Haushaltsführung"
+            value={d.doubleHousehold}
+            onChange={(v) => setDeductions({ doubleHousehold: v })}
+            hint={
+              state.lohnsteuer?.doubleHouseholdReimbursed
+                ? `Tax-free €${state.lohnsteuer.doubleHouseholdReimbursed.toFixed(0)} (Nr. 21) is subtracted`
+                : 'Second home for work (rent, travel home)'
+            }
           />
           <label className="block sm:col-span-2">
             <span className="label">

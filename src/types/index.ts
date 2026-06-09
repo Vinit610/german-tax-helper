@@ -52,8 +52,12 @@ export interface LohnsteuerData {
   dbaIncome: number;
   /** Nr. 15 — Kurzarbeitergeld u. a. Lohnersatzleistungen (Progressionsvorbehalt). */
   lohnReplacement: number;
-  /** Nr. 17 — Steuerfreie AG-Leistungen, auf die Entfernungspauschale anrechenbar. */
+  /** Nr. 17 (+18) — Steuerfreie AG-Leistungen, auf die Entfernungspauschale anrechenbar. */
   agCommuteUntaxed: number;
+  /** Nr. 20 — Steuerfrei ersetzte Verpflegungsmehraufwendungen (reduces the meal claim). */
+  mealReimbursed: number;
+  /** Nr. 21 — Steuerfreie Vergütungen bei doppelter Haushaltsführung (reduces that claim). */
+  doubleHouseholdReimbursed: number;
 
   /** Nr. 22a — Arbeitgeberanteil gesetzliche Rentenversicherung. */
   pensionEmployer: number;
@@ -107,6 +111,10 @@ export interface Deductions {
   trainingCosts: number;
   /** Job-application costs and other minor Werbungskosten. */
   applicationCosts: number;
+  /** Meal allowance for business travel (Verpflegungsmehraufwand). */
+  mealAllowance: number;
+  /** Double-household running costs (doppelte Haushaltsführung). */
+  doubleHousehold: number;
 
   // --- Sonderausgaben (special expenses) ---
   /** Charitable donations (Spenden). */

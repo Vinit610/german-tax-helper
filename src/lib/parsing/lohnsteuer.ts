@@ -140,7 +140,7 @@ interface FieldRule {
 const RULES: FieldRule[] = [
   // --- Wage (Anlage N) ---
   { line: '3', used: true, label: 'Gross salary (regular)', germanLabel: 'Bruttoarbeitslohn (ohne Nr. 9/10)', captions: ['bruttoarbeitslohn'] },
-  { line: '6', used: true, label: 'Tax-free wage under a treaty', germanLabel: 'Steuerfreier Arbeitslohn nach DBA/ATE', captions: ['steuerfreier arbeitslohn nach', 'doppelbesteuerungsabkommen', 'steuerfreier'] },
+  { line: '6', used: true, label: 'Tax-free wage under a treaty', germanLabel: 'Steuerfreier Arbeitslohn nach DBA/ATE', captions: ['doppelbesteuerungsabkommen', 'auslandstätigkeitserlass', 'abkommen'] },
   // Caption restricted to "Versorgungsbezüge" so it can't match inside Nr. 10's
   // wording ("…und ermäßigt besteuerte Entschädigungen"), which double-counted.
   { line: '9', used: true, label: 'Reduced-rate pension benefits', germanLabel: 'Ermäßigt besteuerte Versorgungsbezüge', captions: ['ermäßigt besteuerte versorgungsbezüge', 'ermassigt besteuerte versorgungsbezüge'] },
@@ -163,6 +163,8 @@ const RULES: FieldRule[] = [
   { line: '15', used: true, label: 'Wage-replacement benefits', germanLabel: 'Kurzarbeitergeld u. a. Lohnersatzleistungen', captions: ['kurzarbeitergeld', 'lohnersatzleistungen'] },
   { line: '17', used: true, label: 'Employer commute benefit (tax-free)', germanLabel: 'Steuerfreie AG-Leistungen auf die Entfernungspauschale', captions: ['entfernungspauschale anzurechnen sind', 'die auf die entfernungspauschale anzurechnen'] },
   { line: '18', used: true, label: 'Flat-taxed commute benefit', germanLabel: 'Pauschal besteuerte Arbeitgeberleistungen für Fahrten Wohnung–Arbeit', captions: ['pauschal besteuerte arbeitgeberleistungen', 'pauschal besteuert'] },
+  { line: '20', used: true, label: 'Meal allowance reimbursed (tax-free)', germanLabel: 'Steuerfrei ersetzte Verpflegungsmehraufwendungen', captions: ['verpflegungsmehraufwendungen', 'verpflegungszuschüsse', 'verpflegung'] },
+  { line: '21', used: true, label: 'Double-household reimbursed (tax-free)', germanLabel: 'Steuerfreie Vergütungen bei doppelter Haushaltsführung', captions: ['doppelter haushaltsführung', 'doppelte haushaltsführung', 'doppelten haushaltsführung'] },
 
   // --- Social insurance (Anlage Vorsorgeaufwand) (essential) ---
   { line: '22a', used: true, label: 'Pension — employer share', germanLabel: 'Arbeitgeberanteil gesetzliche Rentenversicherung', captions: ['zur gesetzlichen rentenversicherung'], prefix: 'arbeitgeber' },
@@ -276,8 +278,6 @@ export function parseLohnsteuer(text: string, source: 'pdf' | 'ocr'): ParseResul
 // German labels for lines we capture generically but don't map into the estimate.
 const KNOWN_EXTRA_LABELS: Record<string, string> = {
   '16': 'Steuerfreie Arbeitgeberleistungen (Auswärtstätigkeit/Sammelbeförderung)',
-  '20': 'Steuerfreie Verpflegungszuschüsse bei Auswärtstätigkeit',
-  '21': 'Steuerfreie Arbeitgeberleistungen bei doppelter Haushaltsführung',
   '24': 'Steuerfreie Arbeitgeberzuschüsse Kranken-/Pflegeversicherung',
   '29': 'Bemessungsgrundlage für den Versorgungsfreibetrag',
 };
@@ -310,6 +310,8 @@ export function fieldsToData(fields: ParsedField[]): LohnsteuerData {
     dbaIncome: g('6'),
     lohnReplacement: g('15'),
     agCommuteUntaxed: g('17') + g('18'),
+    mealReimbursed: g('20'),
+    doubleHouseholdReimbursed: g('21'),
     pensionEmployer: g('22a') + g('22b'),
     pensionEmployee: g('23a') + g('23b'),
     healthInsuranceEmployee: g('25'),
@@ -332,6 +334,8 @@ export function dataToFields(data: LohnsteuerData): ParsedField[] {
     '6': data.dbaIncome,
     '15': data.lohnReplacement,
     '17': data.agCommuteUntaxed,
+    '20': data.mealReimbursed,
+    '21': data.doubleHouseholdReimbursed,
     '22a': data.pensionEmployer,
     '23a': data.pensionEmployee,
     '25': data.healthInsuranceEmployee,

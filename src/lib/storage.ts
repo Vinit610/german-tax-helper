@@ -35,6 +35,8 @@ export function defaultState(): AppState {
       unionDues: 0,
       trainingCosts: 0,
       applicationCosts: 0,
+      mealAllowance: 0,
+      doubleHousehold: 0,
       donations: 0,
       liabilityInsurance: 0,
       accidentInsurance: 0,

@@ -69,8 +69,18 @@ export function homeOfficeAllowance(days: number): number {
   return capped * HOME_OFFICE_RATE;
 }
 
-/** Werbungskosten (income-related expenses) → Anlage N. */
-export function computeWerbungskosten(d: Deductions, agCommuteUntaxed = 0): WerbungskostenResult {
+/**
+ * Werbungskosten (income-related expenses) → Anlage N. `reimbursed` carries the
+ * tax-free employer amounts from the wage statement that net against the claims:
+ * commute (Nr. 17/18), meals (Nr. 20) and double-household (Nr. 21).
+ */
+export function computeWerbungskosten(
+  d: Deductions,
+  reimbursed: { agCommuteUntaxed?: number; mealReimbursed?: number; doubleHouseholdReimbursed?: number } = {},
+): WerbungskostenResult {
+  const agCommuteUntaxed = reimbursed.agCommuteUntaxed ?? 0;
+  const meals = Math.max(0, d.mealAllowance - Math.max(0, reimbursed.mealReimbursed ?? 0));
+  const doubleHH = Math.max(0, d.doubleHousehold - Math.max(0, reimbursed.doubleHouseholdReimbursed ?? 0));
   const pauschale = commuteAllowance(d.commuteOneWayKm, d.commuteDays, d.commuteMode);
   // For public transport you may claim actual cost if it exceeds the Pauschale.
   const gross = d.commuteMode !== 'car' ? Math.max(pauschale, d.commutePublicCost) : pauschale;
@@ -99,6 +109,20 @@ export function computeWerbungskosten(d: Deductions, agCommuteUntaxed = 0): Werb
     { label: 'Professional/union dues', germanLabel: 'Beiträge zu Berufsverbänden', amount: d.unionDues, elster: ELSTER_DEDUCTION.unionDues },
     { label: 'Training / further education', germanLabel: 'Fortbildungskosten', amount: d.trainingCosts, elster: ELSTER_DEDUCTION.training },
     { label: 'Application & other costs', germanLabel: 'Bewerbungskosten u. a.', amount: d.applicationCosts, elster: ELSTER_DEDUCTION.applications },
+    {
+      label: 'Meal allowance (net of reimbursement)',
+      germanLabel: 'Verpflegungsmehraufwand',
+      amount: meals,
+      note: (reimbursed.mealReimbursed ?? 0) > 0 ? `less €${(reimbursed.mealReimbursed ?? 0).toFixed(0)} tax-free reimbursed (Nr. 20)` : undefined,
+      elster: ELSTER_DEDUCTION.meals,
+    },
+    {
+      label: 'Double household (net of reimbursement)',
+      germanLabel: 'Doppelte Haushaltsführung',
+      amount: doubleHH,
+      note: (reimbursed.doubleHouseholdReimbursed ?? 0) > 0 ? `less €${(reimbursed.doubleHouseholdReimbursed ?? 0).toFixed(0)} tax-free reimbursed (Nr. 21)` : undefined,
+      elster: ELSTER_DEDUCTION.doubleHousehold,
+    },
   ];
   const actual = items.reduce((s, i) => s + i.amount, 0);
   const applied = Math.max(actual, ARBEITNEHMER_PAUSCHBETRAG);

@@ -86,7 +86,11 @@ export function computeEstimate(state: AppState): EstimateResult | null {
 
   const joint = p.assessmentType === 'joint';
 
-  const werbungskosten = computeWerbungskosten(d, l.agCommuteUntaxed);
+  const werbungskosten = computeWerbungskosten(d, {
+    agCommuteUntaxed: l.agCommuteUntaxed,
+    mealReimbursed: l.mealReimbursed,
+    doubleHouseholdReimbursed: l.doubleHouseholdReimbursed,
+  });
   const vorsorge = computeVorsorge(l, d, joint);
   const sonderausgaben = computeOtherSonderausgaben(d, joint);
 
