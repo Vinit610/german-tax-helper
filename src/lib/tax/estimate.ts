@@ -14,7 +14,7 @@ import {
   type WerbungskostenResult,
 } from './deductions';
 import { einkommensteuerGesamt, kirchensteuer, marginalRate, soli } from './incomeTax';
-import { computeCapital, foreignEmploymentCredit, type CapitalResult } from './capitalForeign';
+import { computeCapital, foreignTaxCredit, type CapitalResult } from './capitalForeign';
 import { ELSTER_DEDUCTION, ELSTER_LSTB } from './elster';
 
 export interface AnlageSection {
@@ -111,9 +111,13 @@ export function computeEstimate(state: AppState): EstimateResult | null {
   const extraordinary = l.specialIncome;
 
   const grossIncomeTax = einkommensteuerGesamt(taxableIncome, extraordinary, progIncome, p.assessmentType);
-  // Foreign-tax credit on GSU/foreign employment income (§34c / DBA), capped.
+  // Foreign-tax credit (§34c / DBA). The foreign-taxed income may be the GSU we
+  // added OR income already on the wage statement (e.g. RSUs in line 3/10); both
+  // count toward the credit base, capped at the German tax on that income.
+  const foreignTaxedIncome = cfOn ? gsuIncome + Math.max(0, cf.foreignTaxedIncomeOnCert) : 0;
+  const totalTaxedIncome = taxableIncome + extraordinary;
   const foreignCredit = cfOn
-    ? foreignEmploymentCredit(cf.gsuForeignTaxPaid, gsuIncome, grossIncomeTax, taxableIncome)
+    ? foreignTaxCredit(cf.gsuForeignTaxPaid, foreignTaxedIncome, grossIncomeTax, totalTaxedIncome)
     : 0;
   const incomeTax = Math.max(0, Math.round((grossIncomeTax - foreignCredit) * 100) / 100);
 

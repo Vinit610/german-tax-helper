@@ -89,31 +89,45 @@ export function CapitalForeignStep({ onNext, onBack }: { onNext: () => void; onB
             </h3>
             <div className="grid gap-4 sm:grid-cols-2">
               <NumberField
-                label="GSU/RSU income not already on your wage statement"
+                label="GSU/RSU income NOT already on your wage statement"
                 germanLabel="Geldwerter Vorteil (RSU/ESPP)"
                 value={cf.gsuIncome}
                 onChange={(v) => setCapital({ gsuIncome: v })}
-                hint="Taxed at your normal rate as employment income"
+                hint="Only if a foreign employer didn’t report it — adds to your taxable income"
               />
               <NumberField
-                label="Of that, treaty-exempt (work done abroad)"
-                germanLabel="Steuerfrei nach DBA"
-                value={cf.gsuTreatyExempt}
-                onChange={(v) => setCapital({ gsuTreatyExempt: v })}
-                hint="Tax-free in Germany but raises your rate (Progressionsvorbehalt)"
+                label="Income already on your statement that was also taxed abroad"
+                germanLabel="Bereits in der Lohnsteuerbescheinigung enthalten"
+                value={cf.foreignTaxedIncomeOnCert}
+                onChange={(v) => setCapital({ foreignTaxedIncomeOnCert: v })}
+                hint="e.g. RSUs in line 3 or 10 — used only to size the credit, not added again"
               />
               <NumberField
-                label="Foreign tax paid on it"
+                label="Total foreign tax paid abroad (e.g. India)"
                 germanLabel="Anrechenbare ausländische Steuer"
                 value={cf.gsuForeignTaxPaid}
                 onChange={(v) => setCapital({ gsuForeignTaxPaid: v })}
                 hint="Credited up to the German tax on this income (§34c / DBA)"
               />
+              <NumberField
+                label="Of the above, treaty-exempt (work done abroad)"
+                germanLabel="Steuerfrei nach DBA"
+                value={cf.gsuTreatyExempt}
+                onChange={(v) => setCapital({ gsuTreatyExempt: v })}
+                hint="Tax-free in Germany but raises your rate (Progressionsvorbehalt)"
+              />
             </div>
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              Already taxed in India on RSUs that are <strong>also</strong> in your German wage
+              statement (line 3 or 10)? Don’t re-enter the income as “GSU income” — put that amount in
+              “income already on your statement that was also taxed abroad,” and your Indian tax in
+              “total foreign tax paid.” You’ll get the double-taxation credit without counting the
+              income twice.
+            </p>
             <p className="rounded-lg bg-indigo-50 px-3 py-2 text-xs text-indigo-800">
-              India–Germany treaty: income is generally taxed where the work is performed; tax already
-              paid in India on the same income is credited here to avoid double taxation. This is a
-              simplified estimate — confirm the treaty article and amounts before filing.
+              India–Germany treaty (credit method): income is generally taxed where the work is
+              performed; tax already paid in India on the same income is credited here to avoid double
+              taxation. Simplified estimate — confirm the treaty article and amounts before filing.
             </p>
           </section>
         </>

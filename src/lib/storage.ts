@@ -48,6 +48,7 @@ export function defaultState(): AppState {
       capitalTaxWithheld: 0,
       foreignWithholdingTax: 0,
       gsuIncome: 0,
+      foreignTaxedIncomeOnCert: 0,
       gsuTreatyExempt: 0,
       gsuForeignTaxPaid: 0,
     },

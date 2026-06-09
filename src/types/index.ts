@@ -141,11 +141,17 @@ export interface CapitalForeign {
   foreignWithholdingTax: number;
 
   // --- Foreign / equity-compensation income → Anlage N + AUS ---
-  /** RSU/ESPP (GSU) income taxed at the normal rate, not already in Nr. 3. */
+  /** RSU/ESPP (GSU) income taxed at the normal rate, NOT already on the wage statement. */
   gsuIncome: number;
+  /**
+   * Income that IS already on the wage statement (e.g. RSUs in line 3 or 10) but
+   * was ALSO taxed abroad. Not added to income again — used only to size the
+   * foreign-tax credit. This is how you claim relief without double-counting.
+   */
+  foreignTaxedIncomeOnCert: number;
   /** Portion exempt under the India–Germany treaty (Progressionsvorbehalt). */
   gsuTreatyExempt: number;
-  /** Foreign tax paid on the GSU/foreign income, creditable in Germany. */
+  /** Total foreign tax paid abroad (e.g. India) on the GSU/foreign income, creditable. */
   gsuForeignTaxPaid: number;
 }
 

@@ -46,16 +46,22 @@ export function computeCapital(cf: CapitalForeign, joint: boolean, churchRate: C
 }
 
 /**
- * Foreign-tax credit on GSU / foreign employment income (Anlage AUS, §34c).
- * Capped at the German income tax attributable to that income.
+ * Foreign-tax credit on foreign employment income (Anlage AUS, §34c / DBA).
+ *
+ * `foreignTaxedIncome` is the income that was taxed abroad — whether it was added
+ * here (not on the wage statement) OR is already inside the German-taxed income
+ * (e.g. RSUs in line 3/10). The credit is capped at the German income tax
+ * attributable to that income (the Höchstbetrag), so relief can be claimed
+ * without re-declaring — and double-counting — the income itself.
  */
-export function foreignEmploymentCredit(
+export function foreignTaxCredit(
   foreignTaxPaid: number,
-  gsuIncome: number,
-  totalIncomeTax: number,
-  taxableIncome: number,
+  foreignTaxedIncome: number,
+  grossIncomeTax: number,
+  totalTaxedIncome: number,
 ): number {
-  if (foreignTaxPaid <= 0 || gsuIncome <= 0 || taxableIncome <= 0) return 0;
-  const hoechstbetrag = (totalIncomeTax * gsuIncome) / taxableIncome;
+  if (foreignTaxPaid <= 0 || foreignTaxedIncome <= 0 || totalTaxedIncome <= 0) return 0;
+  const ratio = Math.min(1, foreignTaxedIncome / totalTaxedIncome);
+  const hoechstbetrag = grossIncomeTax * ratio;
   return Math.round(Math.min(foreignTaxPaid, hoechstbetrag) * 100) / 100;
 }
