@@ -117,7 +117,12 @@ function findByCaption(text: string, n: Normalised, captions: string[], prefix?:
       from = idx + ncore.length;
       if (nprefix && !n.norm.slice(Math.max(0, idx - 40), idx).includes(nprefix)) continue;
       const origStart = n.map[idx + ncore.length - 1] + 1;
-      const v = bestAmount(text.slice(origStart, origStart + 120));
+      let slice = text.slice(origStart, origStart + 200);
+      // Stop at the next form line-number marker (" 22. ", "\n23a) ") so a line
+      // with no value of its own can't borrow the following line's amount.
+      const stop = slice.match(/\s\d{1,2}\s*[a-c]?\s*[.)]\s/);
+      if (stop && stop.index !== undefined) slice = slice.slice(0, stop.index);
+      const v = bestAmount(slice);
       if (v !== null) return v;
     }
   }
@@ -174,7 +179,7 @@ const RULES: FieldRule[] = [
   { line: '25', used: true, label: 'Health insurance (employee)', germanLabel: 'Arbeitnehmerbeiträge gesetzliche Krankenversicherung', captions: ['arbeitnehmerbeiträge zur gesetzlichen krankenversicherung', 'arbeitnehmerbeiträge zur krankenversicherung'] },
   { line: '26', used: true, label: 'Long-term care insurance (employee)', germanLabel: 'Arbeitnehmerbeiträge soziale Pflegeversicherung', captions: ['arbeitnehmerbeiträge zur sozialen pflegeversicherung', 'soziale pflegeversicherung'] },
   { line: '27', used: true, label: 'Unemployment insurance (employee)', germanLabel: 'Arbeitnehmerbeiträge Arbeitslosenversicherung', captions: ['arbeitnehmerbeiträge zur arbeitslosenversicherung', 'arbeitslosenversicherung'] },
-  { line: '28', used: true, label: 'Private health/care insurance or minimum provision', germanLabel: 'Beiträge zur privaten Kranken- und Pflege-Pflichtversicherung oder Mindestvorsorgepauschale', captions: ['mindestvorsorgepauschale', 'privaten kranken'] },
+  { line: '28', used: true, label: 'Private health/care insurance or minimum provision', germanLabel: 'Beiträge zur privaten Kranken- und Pflege-Pflichtversicherung oder Mindestvorsorgepauschale', captions: ['mindestvorsorgepauschale', 'pflege-pflichtversicherung', 'privaten kranken- und pflege'] },
 ];
 
 // --- Generic line capture ----------------------------------------------------
@@ -262,10 +267,11 @@ export function parseLohnsteuer(text: string, source: 'pdf' | 'ocr'): ParseResul
     .sort((a, b) => Number.parseInt(a, 10) - Number.parseInt(b, 10) || a.localeCompare(b));
   for (const id of extras) {
     found++;
+    const known = KNOWN_EXTRA_LABELS[id];
     fields.push({
       line: id,
-      label: `Line ${id}`,
-      germanLabel: KNOWN_EXTRA_LABELS[id] ?? 'Vom Beleg erfasst',
+      label: known ? known.label : `Line ${id}`,
+      germanLabel: known ? known.german : 'Vom Beleg erfasst',
       value: seg.get(id) ?? 0,
       confidence: baseConfidence,
       used: false,
@@ -276,10 +282,13 @@ export function parseLohnsteuer(text: string, source: 'pdf' | 'ocr'): ParseResul
 }
 
 // German labels for lines we capture generically but don't map into the estimate.
-const KNOWN_EXTRA_LABELS: Record<string, string> = {
-  '16': 'Steuerfreie Arbeitgeberleistungen (Auswärtstätigkeit/Sammelbeförderung)',
-  '24': 'Steuerfreie Arbeitgeberzuschüsse Kranken-/Pflegeversicherung',
-  '29': 'Bemessungsgrundlage für den Versorgungsfreibetrag',
+const KNOWN_EXTRA_LABELS: Record<string, { label: string; german: string }> = {
+  '16': { label: 'Tax-free employer travel benefits', german: 'Steuerfreie Arbeitgeberleistungen (Auswärtstätigkeit/Sammelbeförderung)' },
+  '24': { label: 'Employer health/care subsidy (tax-free)', german: 'Steuerfreie Arbeitgeberzuschüsse Kranken-/Pflegeversicherung' },
+  '24a': { label: 'Employer subsidy — statutory health', german: 'Steuerfreier Arbeitgeberzuschuss zur gesetzlichen Krankenversicherung' },
+  '24b': { label: 'Employer subsidy — private health', german: 'Steuerfreier Arbeitgeberzuschuss zur privaten Krankenversicherung' },
+  '24c': { label: 'Employer subsidy — statutory care', german: 'Steuerfreier Arbeitgeberzuschuss zur gesetzlichen Pflegeversicherung' },
+  '29': { label: 'Pension-allowance basis', german: 'Bemessungsgrundlage für den Versorgungsfreibetrag' },
 };
 
 /** Build an empty field list for fully manual entry. */
